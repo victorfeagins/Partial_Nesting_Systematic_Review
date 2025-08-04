@@ -1,0 +1,9 @@
+Newer Research:
+Broken into two searches since PubMed has a 10,000 search limit
+
+((((((((((((("American Journal of Public Health"[Journal]) OR ("Preventive medicine"[Journal])) OR ("Journal of health psychology"[Journal])) OR ("Obesity research"[Journal])) OR ("Addictive behaviors"[Journal])) OR ("AIDS and behavior"[Journal])) OR ("Evaluation review"[Journal])) OR ("Journal of consulting and clinical psychology"[Journal])) OR ("Prevention science : the official journal of the Society for Prevention Research"[Journal])) OR ("Journal of educational psychology"[Journal]))) OR ("Journal of research on educational effectiveness"[Journal])) OR ("The Journal of educational research"[Journal])) AND (("2020"[Date - Publication] : "2022"[Date - Publication]))
+
+((((((((((((("American Journal of Public Health"[Journal]) OR ("Preventive medicine"[Journal])) OR ("Journal of health psychology"[Journal])) OR ("Obesity research"[Journal])) OR ("Addictive behaviors"[Journal])) OR ("AIDS and behavior"[Journal])) OR ("Evaluation review"[Journal])) OR ("Journal of consulting and clinical psychology"[Journal])) OR ("Prevention science : the official journal of the Society for Prevention Research"[Journal])) OR ("Journal of educational psychology"[Journal]))) OR ("Journal of research on educational effectiveness"[Journal])) OR ("The Journal of educational research"[Journal])) AND (("2023"[Date - Publication] : "2024"[Date - Publication]))
+
+
+With EBSCO Search
