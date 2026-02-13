@@ -10,7 +10,7 @@ execute:
 library(dplyr) #For general data manipulation
 library(stringr) #For string manipulation
 library(tidyr) #For pivoting
-library(readr) #For read_csv which automatic column renaming is useful for output from meta reviewer
+library(purrr)
 library(flextable) # For Creating Tables
 full_experiment_dat <- read.csv("Clean_Data/experimental_data.csv")
 long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
@@ -61,9 +61,9 @@ long_cond_sample_size <- long_cond |>
                                                                                                    na.rm = TRUE),
                                                                                                    include.lowest = TRUE),
                                                        .default = cond_obs_units_count_edit))
-long_cond_sample_size |> 
-  group_by(exp_level_random, cond_type, cond_exp_units_count_bin) |>
-  summarise(count = n())
+# long_cond_sample_size |> 
+#   group_by(exp_level_random, cond_type, cond_exp_units_count_bin) |>
+#   summarise(count = n())
 ```
 
 ## Article Characteristics 
@@ -71,27 +71,42 @@ long_cond_sample_size |>
 * Types of Randomization procedure
 * Number of Experimental Conditions
 * Number of primary or secondary analysis
-* Analytic Goals
 * Sample size (Challenging pin in for now)
 ```{r}
 calc_freq <- function(experimental_dat, variable){
-
 var_label <- deparse(substitute(variable))
 full_experiment_dat |> 
   group_by({{variable}}) |> 
   summarise(count = n()) |> 
   rename(variable = {{variable}}) |> 
   mutate(across(everything(), as.character)) |> 
-  bind_rows(data.frame(variable = var_label, count = NA))
+  bind_rows(data.frame(variable = var_label, count = NA)) |> 
+  arrange(!is.na(count))
 }
 
-calc_freq(experimental_dat = full_experiment_dat, pub_year)
-full_experiment_dat |> 
-calc_freq(experimental_dat = _, exp_level_random)
-full_experiment_dat |> 
-  calc_freq(experimental_dat = _, exp_random_procedure)
-full_experiment_dat |> 
-  calc_freq(experimental_dat = _, pub_primary_secondary)
+
+exp_characteristics <- bind_rows(calc_freq(full_experiment_dat, pub_year),
+            calc_freq(full_experiment_dat, exp_level_random),
+            calc_freq(full_experiment_dat, exp_random_procedure),
+            calc_freq(full_experiment_dat, pub_primary_secondary))
+exp_characteristics <- exp_characteristics |> 
+  mutate(variable = case_when(variable == "pub_year" ~ "Publication Year",
+                       variable == "exp_level_random" ~ "Unit of Randomization",
+                       variable == "exp_random_procedure" ~ "Randomization Procedure",
+                       variable == "pub_primary_secondary" ~ "Source",
+                       .default = variable)) |> 
+  rename(Characteristic =variable, `Number of Experiments` = count)
+
+exp_characteristics |> 
+  flextable() |> 
+  padding(i = ~ !(Characteristic %in% c("Publication Year", "Unit of Randomization", "Randomization Procedure", "Source")), j = "Characteristic", padding.left = 20)|> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+
 ```
 
 
