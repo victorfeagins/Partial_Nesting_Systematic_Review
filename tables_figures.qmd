@@ -1,0 +1,159 @@
+---
+title: "Tables and Figures"
+format: docx
+execute: 
+  echo: false
+  warning: false
+---
+
+```{r}
+library(dplyr) #For general data manipulation
+library(stringr) #For string manipulation
+library(tidyr) #For pivoting
+library(readr) #For read_csv which automatic column renaming is useful for output from meta reviewer
+library(flextable) # For Creating Tables
+full_experiment_dat <- read.csv("Clean_Data/experimental_data.csv")
+long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
+add_to_cond <- full_experiment_dat |> 
+  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure)
+
+long_cond <- long_cond |> 
+  left_join(add_to_cond, by = join_by(citation_id, study_id, response_id, experiment))
+
+```
+
+```{r}
+## Sample size cleaning for across conditions
+# long_cond |> 
+#   filter(is.na(suppressWarnings(as.numeric(cond_exp_units_count)))) |> 
+#   View()
+
+long_cond <- long_cond |> 
+  mutate(cond_exp_units_count_edit = case_when(str_detect(cond_exp_units_count, "\\*") ~ "Not Baseline",
+                                               study_id %in% c("111573517", "111565447") ~ "Not Reported", #this study did not report their sample size
+                                               study_id %in% c("111576847") & cond_name == "Standard Counseling" ~ "50", #Only the randomized part of the data
+                                               is.na(suppressWarnings(as.numeric(cond_exp_units_count))) ~ "Not Reported",
+                                               .default = cond_exp_units_count)) 
+
+# long_cond |> 
+#   filter(exp_level_random == "Cluster") |> 
+#   filter(is.na(suppressWarnings(as.numeric(cond_obs_units_count)))) |> 
+#   View()
+
+long_cond <- long_cond |> 
+  mutate(cond_obs_units_count_edit = case_when(exp_level_random == "Cluster" & study_id == "111565465" ~ str_remove(cond_obs_units_count, "\\*"), 
+                                               exp_level_random == "Cluster" & study_id == "111571561" ~ "Not Baseline",
+                                               exp_level_random == "Cluster" & study_id == "111571507" ~ "Not Reported",
+                                               exp_level_random == "Cluster" & is.na(suppressWarnings(as.numeric(cond_obs_units_count))) ~ "Multiple Types of Observation Units",
+                                               .default = cond_obs_units_count))
+long_cond_sample_size <- long_cond |> 
+  filter(exp_level_random != "Mix") |> 
+  mutate(cond_obs_units_count_edit_num = suppressWarnings(as.numeric(cond_obs_units_count_edit)),
+         cond_exp_units_count_edit_num = suppressWarnings(as.numeric(cond_exp_units_count_edit))) |> 
+  group_by(exp_level_random) |> 
+  mutate(cond_exp_units_count_bin = case_when(!is.na(cond_exp_units_count_edit_num) ~ cut(cond_exp_units_count_edit_num, 
+                                                                                                   breaks = quantile(cond_exp_units_count_edit_num, 
+                                                                                                   na.rm = TRUE),
+                                                                                                   include.lowest = TRUE),
+                                                       .default = cond_exp_units_count_edit),
+         cond_obs_units_count_bin = case_when(!is.na(cond_obs_units_count_edit_num) ~ cut(cond_obs_units_count_edit_num, 
+                                                                                                   breaks = quantile(cond_obs_units_count_edit_num, 
+                                                                                                   na.rm = TRUE),
+                                                                                                   include.lowest = TRUE),
+                                                       .default = cond_obs_units_count_edit))
+long_cond_sample_size |> 
+  group_by(exp_level_random, cond_type, cond_exp_units_count_bin) |>
+  summarise(count = n())
+```
+
+## Article Characteristics 
+* Year of publication
+* Types of Randomization procedure
+* Number of Experimental Conditions
+* Number of primary or secondary analysis
+* Analytic Goals
+* Sample size (Challenging pin in for now)
+```{r}
+calc_freq <- function(experimental_dat, variable){
+
+var_label <- deparse(substitute(variable))
+full_experiment_dat |> 
+  group_by({{variable}}) |> 
+  summarise(count = n()) |> 
+  rename(variable = {{variable}}) |> 
+  mutate(across(everything(), as.character)) |> 
+  bind_rows(data.frame(variable = var_label, count = NA))
+}
+
+calc_freq(experimental_dat = full_experiment_dat, pub_year)
+full_experiment_dat |> 
+calc_freq(experimental_dat = _, exp_level_random)
+full_experiment_dat |> 
+  calc_freq(experimental_dat = _, exp_random_procedure)
+full_experiment_dat |> 
+  calc_freq(experimental_dat = _, pub_primary_secondary)
+```
+
+
+## Research Question 1 
+1.	How prevalent are partial nested designs among randomized experiments in education and public health research?
+
+```{r}
+count_articles <- function(experimental_dat, ...){
+    #... is the grouping variable for journal type or specific publication journal 
+experimental_dat |> 
+  group_by(exp_level_random, partial_nest,...) |> 
+  summarise(count= n()) |> 
+  mutate(experiment_type = paste(exp_level_random, partial_nest, sep = "_")) |> 
+  pivot_wider(id_cols = c(...), names_from = experiment_type, values_from = count) |> 
+  mutate(across(everything(), ~ifelse(is.na(.x), 0, .x)))
+}
+counts_publication  <- count_articles(full_experiment_dat, journal_type, pub_journal)
+counts_journal_type <- count_articles(full_experiment_dat, journal_type) |> 
+  mutate(pub_journal = journal_type)
+counts_marginal <- count_articles(full_experiment_dat) |> 
+  mutate(pub_journal = "Total", journal_type = "Total") 
+stopifnot(!("Mix_Non-PN" %in% names(counts_publication))) #If this fails then remove line of code that adds this column in
+
+number_exp_dat <- bind_rows(counts_publication, counts_journal_type, counts_marginal) |> 
+  ungroup() |> 
+  mutate(`Mix_Non-PN` = 0) |> ## Remove this line if Mix_Non-PN are found 
+  rowwise() |> 
+  mutate(Cluster_Total = sum(c_across(starts_with("Cluster"))),
+         Individual_Total = sum(c_across(starts_with("Individual"))),
+         Mix_Total = sum(c_across(starts_with("Mix"))),
+         `All Designs_Total` = sum(c_across(ends_with("Total"))),
+         `All Designs_PN` = sum(c_across(ends_with("_PN")))) |> 
+  ungroup()
+
+number_exp_dat |> 
+  arrange( desc(journal_type), desc( `All Designs_Total`)) |> 
+  select(-journal_type, pub_journal, -contains("Non-PN")) |> 
+  relocate(pub_journal, starts_with("Individual"),starts_with("Cluster"), starts_with("Mix"), `All Designs_PN`, `All Designs_Total`) |> 
+  rename(Publication = pub_journal) |> 
+  flextable() |> 
+  separate_header() |> 
+  align(align = "center", part = "header") |>
+  padding(i = ~ !(Publication %in% c("Total", "Health", "Education")), j = "Publication", padding.left = 20) |> 
+  add_header_row(values = c("","Unit of Randomization", ""),
+  colwidths = c(1,6, 2)) |> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+```
+
+
+## Research Question 2
+2.	What are the prevailing characteristics of partially nested designs, specifically regarding grouping structures, cluster assignment mechanisms, randomization procedures, and sample size distributions?
+
+## Research Question 3
+3.	To what extent and by what statistical methods do researchers account for partial nesting?
+
+## Research Question 4
+4.	Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
+
+## Research Question 5
+5.	What are possible reasons researchers might not account for partial nesting in their analyses?
