@@ -15,7 +15,7 @@ library(flextable) # For Creating Tables
 full_experiment_dat <- read.csv("Clean_Data/experimental_data.csv")
 long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
 add_to_cond <- full_experiment_dat |> 
-  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure)
+  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest)
 
 long_cond <- long_cond |> 
   left_join(add_to_cond, by = join_by(citation_id, study_id, response_id, experiment))
@@ -127,7 +127,7 @@ counts_publication  <- count_articles(full_experiment_dat, journal_type, pub_jou
 counts_journal_type <- count_articles(full_experiment_dat, journal_type) |> 
   mutate(pub_journal = journal_type)
 counts_marginal <- count_articles(full_experiment_dat) |> 
-  mutate(pub_journal = "Total", journal_type = "Total") 
+  mutate(pub_journal = "Overall", journal_type = "Overall") 
 stopifnot(!("Mix_Non-PN" %in% names(counts_publication))) #If this fails then remove line of code that adds this column in
 
 number_exp_dat <- bind_rows(counts_publication, counts_journal_type, counts_marginal) |> 
@@ -149,7 +149,7 @@ number_exp_dat |>
   flextable() |> 
   separate_header() |> 
   align(align = "center", part = "header") |>
-  padding(i = ~ !(Publication %in% c("Total", "Health", "Education")), j = "Publication", padding.left = 20) |> 
+  padding(i = ~ !(Publication %in% c("Overall", "Health", "Education")), j = "Publication", padding.left = 20) |> 
   add_header_row(values = c("","Unit of Randomization", ""),
   colwidths = c(1,6, 2)) |> 
   autofit() |> 
@@ -163,6 +163,70 @@ number_exp_dat |>
 
 ## Research Question 2
 2.	What are the prevailing characteristics of partially nested designs, specifically regarding grouping structures, cluster assignment mechanisms, randomization procedures, and sample size distributions?
+
+Location of Partial Nesting:
+```{r}
+location_pn_dat <- full_experiment_dat |> 
+  filter(partial_nest == "PN") |> 
+  mutate(exp_TP = exp_treatment_provider_percent > 0 & exp_treatment_provider_percent < 1,
+         exp_group = exp_treatment_group_percent > 0 & exp_treatment_group_percent < 1, 
+         obs_TP = obs_treatment_group_percent > 0 & obs_treatment_group_percent < 1,
+         obs_group = obs_treatment_group_percent > 0 & obs_treatment_group_percent < 1) |> 
+  group_by(exp_level_random, journal_type) |> 
+  summarise(across(matches("TP$|group$"), ~sum(.x, na.rm = TRUE)),
+            total = n()) |> 
+  ungroup()
+location_pn_dat <- location_pn_dat |> 
+  summarise(across(c(-exp_level_random, -journal_type), sum)) |> 
+  mutate(exp_level_random = "Overall", journal_type = "Overall") |> 
+  bind_rows(location_pn_dat)
+
+
+
+location_pn_dat |>
+  relocate(journal_type, exp_level_random) |> 
+  rename(`Unit of Randomization` = exp_level_random,
+         `Journal Type` = journal_type,
+         `Unit of Analysis_Experimental_Treatment Provider` = exp_TP,
+         `Unit of Analysis_Experimental_Group Setting` = exp_group,
+         `Unit of Analysis_Observational_Treatment Provider` = obs_TP,
+         `Unit of Analysis_Observational_Group Setting`= obs_group,
+         `Number of Partial Nested Experiments` = total) |> 
+  flextable() |> 
+  separate_header()
+  
+```
+
+Types of Partial nesting:
+
+```{r}
+type_partial_nesting_dat <- full_experiment_dat |> 
+  filter(partial_nest == "PN") |> 
+  group_by(partial_class, journal_type) |> 
+  summarise(Total= n(),
+            `Not Ignored` = sum(analytical_partial_cluster != "Ignored")) |> 
+  pivot_wider(id_cols = partial_class,
+              names_from = journal_type,
+              values_from = c(Total, `Not Ignored`),
+              names_glue = "{.value}_{journal_type}") |> 
+  mutate(`Total_All` = Total_Education + Total_Health,
+         `Not Ignored_All` = `Not Ignored_Education` + `Not Ignored_Health`) |> 
+  ungroup()
+type_partial_nesting_dat <- type_partial_nesting_dat |> 
+  summarise(across(-partial_class, sum)) |> 
+  mutate(partial_class = "Overall") |> 
+  bind_rows(type_partial_nesting_dat)
+
+type_partial_nesting_dat |> 
+  arrange(desc(`Total_All`)) |> 
+  relocate(partial_class, starts_with("Total"), starts_with("Not Ignored")) |> 
+  rename(`PN Classification` = partial_class) |> 
+  flextable() |> 
+  separate_header()
+
+```
+
+Cluster Assignment Mechanism 
 
 ## Research Question 3
 3.	To what extent and by what statistical methods do researchers account for partial nesting?
