@@ -162,7 +162,7 @@ number_exp_dat |>
 
 
 ## Research Question 2
-2.	What are the prevailing characteristics of partially nested designs, specifically regarding grouping structures, cluster assignment mechanisms, randomization procedures, and sample size distributions?
+2.	What are the prevailing characteristics of partially nested designs, specifically regarding grouping structures, cluster assignment mechanisms, and sample size distributions?
 
 Location of Partial Nesting:
 ```{r}
@@ -226,7 +226,21 @@ type_partial_nesting_dat |>
 
 ```
 
-Cluster Assignment Mechanism 
+Cluster Assignment Mechanism:
+```{r}
+full_experiment_dat |> 
+  filter(partial_nest == "PN") |> 
+  group_by(partial_assign_type, journal_type) |> 
+  summarise(`Total`= n(),
+            `Not Ignored` = sum(analytical_partial_cluster != "Ignored")) |> 
+  ungroup() |> 
+  complete(partial_assign_type, journal_type, fill = list(`Total` = 0)) |> 
+  pivot_wider(id_cols = partial_assign_type,
+              names_from = journal_type,
+              values_from = c(`Total`),
+              names_glue = "{journal_type}") |> 
+  mutate(Overall = Education + Health)
+```
 
 ## Research Question 3
 3.	To what extent and by what statistical methods do researchers account for partial nesting?
