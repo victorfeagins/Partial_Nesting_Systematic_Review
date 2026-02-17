@@ -13,9 +13,14 @@ library(tidyr) #For pivoting
 library(purrr)
 library(flextable) # For Creating Tables
 full_experiment_dat <- read.csv("Clean_Data/experimental_data.csv")
+
+full_experiment_dat <- full_experiment_dat |> 
+  mutate(analytical_partial_cluster_edit = case_when(study_id %in% c("111568461","111565034","111576601","111565413","111565408") ~ "Ignored",
+  study_id %in% c("111570022") ~ "Other,Random Effects,Ignored", .default = analytical_partial_cluster)) #These studies only have one partial cluster so coded them as ignored
+
 long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
 add_to_cond <- full_experiment_dat |> 
-  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest)
+  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest, partial_class)
 
 long_cond <- long_cond |> 
   left_join(add_to_cond, by = join_by(citation_id, study_id, response_id, experiment))
@@ -191,9 +196,15 @@ location_pn_dat |>
          `Unit of Analysis_Experimental_Group Setting` = exp_group,
          `Unit of Analysis_Observational_Treatment Provider` = obs_TP,
          `Unit of Analysis_Observational_Group Setting`= obs_group,
-         `Number of Partial Nested Experiments` = total) |> 
+         `Total` = total) |> 
   flextable() |> 
-  separate_header()
+  separate_header()|> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
   
 ```
 
@@ -204,7 +215,7 @@ type_partial_nesting_dat <- full_experiment_dat |>
   filter(partial_nest == "PN") |> 
   group_by(partial_class, journal_type) |> 
   summarise(Total= n(),
-            `Not Ignored` = sum(analytical_partial_cluster != "Ignored")) |> 
+            `Not Ignored` = sum(analytical_partial_cluster_edit != "Ignored")) |> 
   pivot_wider(id_cols = partial_class,
               names_from = journal_type,
               values_from = c(Total, `Not Ignored`),
@@ -222,13 +233,19 @@ type_partial_nesting_dat |>
   relocate(partial_class, starts_with("Total"), starts_with("Not Ignored")) |> 
   rename(`PN Classification` = partial_class) |> 
   flextable() |> 
-  separate_header()
+  separate_header()|> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
 
 ```
 
 Cluster Assignment Mechanism:
 ```{r}
-full_experiment_dat |> 
+cluster_assignment_table <- full_experiment_dat |> 
   filter(partial_nest == "PN") |> 
   group_by(partial_assign_type, journal_type) |> 
   summarise(`Total`= n(),
@@ -240,13 +257,61 @@ full_experiment_dat |>
               values_from = c(`Total`),
               names_glue = "{journal_type}") |> 
   mutate(Overall = Education + Health)
+cluster_assignment_table |> 
+  rename(`Cluster Assignment Mechanism`= partial_assign_type) |> 
+  flextable() |> 
+  separate_header()|> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+
 ```
 
-## Research Question 3
-3.	To what extent and by what statistical methods do researchers account for partial nesting?
+Cluster Size and Number:
 
-## Research Question 4
-4.	Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
+Challenging data is really messy
+```{r}
+long_cond |> 
+  filter(partial_nest == "PN") |> 
+  select(partial_class, cond_treatment_groups_num, cond_treatment_provider_num) |> 
+  View()
+```
+
+
+## Research Question 3
+3.	To what extent and by what statistical methods do researchers account for partial nesting? Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
+
+```{r}
+analytical_approach_dat <- full_experiment_dat |> 
+  filter(partial_nest == "PN",) |> 
+  group_by(analytical_partial_cluster_edit) |> 
+  summarise(Total = n()) |> 
+  rename(`Analytical Approach`= analytical_partial_cluster_edit)
+
+analytical_approach_dat <- full_experiment_dat |> 
+  filter(partial_nest == "PN",) |>
+  summarise(Total = n()) |> 
+  mutate(`Analytical Approach` = "Overall") |> 
+  bind_rows(analytical_approach_dat)
+
+
+analytical_approach_dat |> 
+  arrange(desc(Total)) |> 
+  relocate(`Analytical Approach`, Total) |> 
+  flextable() |> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+
+```
+
+
 
 ## Research Question 5
 5.	What are possible reasons researchers might not account for partial nesting in their analyses?
