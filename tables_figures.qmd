@@ -20,7 +20,7 @@ full_experiment_dat <- full_experiment_dat |>
 
 long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
 add_to_cond <- full_experiment_dat |> 
-  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest, partial_class)
+  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest, partial_class, pub_journal, partial_standardization, partial_diversity, partial_standardization_diversity_source)
 
 long_cond <- long_cond |> 
   left_join(add_to_cond, by = join_by(citation_id, study_id, response_id, experiment))
@@ -55,21 +55,9 @@ long_cond_sample_size <- long_cond |>
   filter(exp_level_random != "Mix") |> 
   mutate(cond_obs_units_count_edit_num = suppressWarnings(as.numeric(cond_obs_units_count_edit)),
          cond_exp_units_count_edit_num = suppressWarnings(as.numeric(cond_exp_units_count_edit))) |> 
-  group_by(exp_level_random) |> 
-  mutate(cond_exp_units_count_bin = case_when(!is.na(cond_exp_units_count_edit_num) ~ cut(cond_exp_units_count_edit_num, 
-                                                                                                   breaks = quantile(cond_exp_units_count_edit_num, 
-                                                                                                   na.rm = TRUE),
-                                                                                                   include.lowest = TRUE),
-                                                       .default = cond_exp_units_count_edit),
-         cond_obs_units_count_bin = case_when(!is.na(cond_obs_units_count_edit_num) ~ cut(cond_obs_units_count_edit_num, 
-                                                                                                   breaks = quantile(cond_obs_units_count_edit_num, 
-                                                                                                   na.rm = TRUE),
-                                                                                                   include.lowest = TRUE),
-                                                       .default = cond_obs_units_count_edit))
-# long_cond_sample_size |> 
-#   group_by(exp_level_random, cond_type, cond_exp_units_count_bin) |>
-#   summarise(count = n())
+  ungroup()
 ```
+
 
 ## Article Characteristics 
 * Year of publication
@@ -112,6 +100,100 @@ exp_characteristics |>
   hline_top(part = "body") |> 
   hline_top(part = "header")
 
+```
+
+Sample size per randomized condition:
+```{r}
+# cluster randomized
+cluster_sample_size_info <- long_cond_sample_size |> 
+  filter(exp_level_random == "Cluster") |> 
+  select(study_id, experiment, cond_type, cond_exp_units_count_edit, cond_exp_units_count_edit_num, cond_obs_units_count_edit, cond_obs_units_count_edit_num) |>
+  mutate(cond_exp_units_count_edit = ifelse(!is.na(cond_exp_units_count_edit_num), "Reported Baseline", cond_exp_units_count_edit),
+         cond_obs_units_count_edit = ifelse(!is.na(cond_obs_units_count_edit_num), "Reported Baseline", cond_obs_units_count_edit))
+cluster_sample_size_stat <- cluster_sample_size_info |> 
+  summarise(across(.cols = c(cond_exp_units_count_edit_num, cond_obs_units_count_edit_num), 
+                   .fns = list(min =~min(.x, na.rm = TRUE),
+                               q25 = ~quantile(.x, probs = .25, na.rm = TRUE), 
+                               mean = ~mean(.x, na.rm = TRUE),
+                               med = ~median(.x, na.rm = TRUE),
+                               q75 = ~quantile(.x, probs = .75, na.rm = TRUE), 
+                               max=~max(.x, na.rm = TRUE)))) |> 
+ pivot_longer(cols = everything(), names_to = c("unit_type", ".value"), names_pattern = "cond_(exp|obs)_units_count_edit_num_(.*)")
+
+exp_report_size <- cluster_sample_size_info |> 
+  group_by(cond_exp_units_count_edit) |> 
+  summarise(count = n_distinct(study_id, experiment)) |> 
+  pivot_wider(names_from = cond_exp_units_count_edit, values_from = count) |> 
+  mutate(unit_type = "exp")
+
+obs_report_size <- cluster_sample_size_info |> 
+  group_by(cond_obs_units_count_edit) |> 
+  summarise(count = n_distinct(study_id, experiment)) |> 
+  pivot_wider(names_from = cond_obs_units_count_edit, values_from = count) |> 
+  mutate(unit_type = "obs")
+
+report_size <- bind_rows(obs_report_size, exp_report_size) |> 
+  replace_na(list(`Multiple Types of Observation Units` = 0))
+
+cluster_sample_size_stat <- cluster_sample_size_stat |> 
+  left_join(report_size) |> 
+  mutate(unit_type = case_when(unit_type == "exp" ~ "Experimental",
+                               unit_type == "obs" ~ "Observational")) |> 
+  mutate(`Total Experiments` = `Reported Baseline` + `Not Reported` + `Not Baseline` + `Multiple Types of Observation Units`)
+
+# Individual Units 
+individual_sample_size_info <- long_cond_sample_size |> 
+  filter(exp_level_random == "Individual") |> 
+  select(study_id, experiment, cond_type, cond_exp_units_count_edit, cond_exp_units_count_edit_num) |>
+  mutate(cond_exp_units_count_edit = ifelse(!is.na(cond_exp_units_count_edit_num), "Reported Baseline", cond_exp_units_count_edit))
+individual_sample_size_stat <- individual_sample_size_info |> 
+  summarise(across(.cols = c(cond_exp_units_count_edit_num), 
+                   .fns = list(min =~min(.x, na.rm = TRUE),
+                               q25 = ~quantile(.x, probs = .25, na.rm = TRUE), 
+                               mean = ~mean(.x, na.rm = TRUE),
+                               med = ~median(.x, na.rm = TRUE),
+                               q75 = ~quantile(.x, probs = .75, na.rm = TRUE), 
+                               max=~max(.x, na.rm = TRUE)))) |> 
+ pivot_longer(cols = everything(), names_to = c("unit_type", ".value"), names_pattern = "cond_(exp)_units_count_edit_num_(.*)")
+
+exp_report_size <- individual_sample_size_info |> 
+  group_by(cond_exp_units_count_edit) |> 
+  summarise(count = n_distinct(study_id, experiment)) |> 
+  pivot_wider(names_from = cond_exp_units_count_edit, values_from = count) |> 
+  mutate(unit_type = "exp")
+
+individual_sample_size_stat <- individual_sample_size_stat |> 
+  left_join(exp_report_size) |> 
+  mutate(unit_type = case_when(unit_type == "exp" ~ "Experimental",
+                               unit_type == "obs" ~ "Observational")) |> 
+  mutate(`Total Experiments` = `Reported Baseline` + `Not Reported` + `Not Baseline`)
+
+## Formating  -----
+
+individual_format <- individual_sample_size_stat |> 
+  select(-`Not Baseline`, -`Not Reported`) |> # 5 studies that have multiple type of observational units
+  mutate(`Unit of Randomization` = "Individual") |> 
+  relocate(`Unit of Randomization`, unit_type, `Reported Baseline`, `Total Experiments`) |> 
+  rename(`Type of Unit` = unit_type, Min = min, `25th Quartile` = q25, Mean = mean, Median = med, `75th Quartile` = q75, Max = max)
+
+
+
+cluster_format <- cluster_sample_size_stat |> 
+  select(-`Not Baseline`, -`Not Reported`, -`Multiple Types of Observation Units`) |> 
+  mutate(`Unit of Randomization` = "Cluster") |> 
+  relocate(`Unit of Randomization`, unit_type, `Reported Baseline`, `Total Experiments`) |> 
+  rename(`Type of Unit` = unit_type, Min = min, `25th Quartile` = q25, Mean = mean, Median = med, `75th Quartile` = q75, Max = max)
+
+bind_rows(individual_format, cluster_format) |> 
+  flextable() |> 
+  colformat_double(digits = 1) |> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+```
 ```
 
 
@@ -165,6 +247,19 @@ number_exp_dat |>
   hline_top(part = "header")
 ```
 
+
+```{r}
+long_cond |> 
+  relocate(study_id, pub_journal, partial_class) |> 
+  dataviewR::dataviewer()
+dataviewR::stop_all_dataviewers()
+```
+
+```{r}
+full_experiment_dat |> 
+  relocate(study_id, pub_journal, partial_class) |> 
+  dataviewR::dataviewer()
+```
 
 ## Research Question 2
 2.	What are the prevailing characteristics of partially nested designs, specifically regarding grouping structures, cluster assignment mechanisms, and sample size distributions?
@@ -274,10 +369,10 @@ Cluster Size and Number:
 
 Challenging data is really messy
 ```{r}
-long_cond |> 
-  filter(partial_nest == "PN") |> 
-  select(partial_class, cond_treatment_groups_num, cond_treatment_provider_num) |> 
-  View()
+# long_cond |> 
+#   filter(partial_nest == "PN") |> 
+#   select(partial_class, cond_treatment_groups_num, cond_treatment_provider_num) |> 
+#   View()
 ```
 
 
@@ -315,3 +410,67 @@ analytical_approach_dat |>
 
 ## Research Question 5
 5.	What are possible reasons researchers might not account for partial nesting in their analyses?
+```{r}
+ignore_PN_standard <- full_experiment_dat |> 
+  filter(partial_nest == "PN", analytical_partial_cluster_edit == "Ignored") |> 
+  group_by(journal_type, partial_class) |> 
+  summarise(`Total Ignore` = n(),
+            `Mention Standardization` = sum(partial_standardization == "Yes", na.rm = TRUE), #Why is there NA need to fix
+            `Mention Diversity` = sum(partial_diversity == "Yes")) |> 
+  pivot_wider(id_cols = c(partial_class),names_from = journal_type, values_from = c(`Total Ignore`, `Mention Standardization`, `Mention Diversity`),
+names_glue = "{journal_type}_{.value}") |> 
+  relocate(partial_class, starts_with("Education"), starts_with("Health")) |> 
+  rename(`PN Classification` = partial_class)
+
+ignore_PN_standard <- ignore_PN_standard |> 
+  summarise(across(-`PN Classification`, sum)) |> 
+  mutate(`PN Classification` = "Overall") |> 
+  bind_rows(ignore_PN_standard) |> 
+  mutate(`Overall_Total Ignore`= `Education_Total Ignore` + `Health_Total Ignore`)
+
+
+ignore_PN_standard |> 
+  relocate(`PN Classification`) |> 
+  flextable() |> 
+  separate_header()|> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+```
+
+
+For those that do not ignore PN:
+```{r}
+not_ignore_PN_standard <- full_experiment_dat |> 
+  filter(partial_nest == "PN", analytical_partial_cluster_edit != "Ignored") |> 
+  group_by(journal_type, partial_class) |> 
+  summarise(`Total Ignore` = n(),
+            `Mention Standardization` = sum(partial_standardization == "Yes", na.rm = TRUE), #Why is there NA need to fix
+            `Mention Diversity` = sum(partial_diversity == "Yes")) |> 
+  pivot_wider(id_cols = c(partial_class),names_from = journal_type, values_from = c(`Total Ignore`, `Mention Standardization`, `Mention Diversity`),
+names_glue = "{journal_type}_{.value}") |> 
+  relocate(partial_class, starts_with("Education"), starts_with("Health")) |> 
+  rename(`PN Classification` = partial_class) |> 
+  mutate(across(everything(), ~ifelse(is.na(.x), 0, .x)))
+
+not_ignore_PN_standard <- not_ignore_PN_standard |> 
+  summarise(across(-`PN Classification`, ~sum(.x, na.rm = TRUE))) |> 
+  mutate(`PN Classification` = "Overall") |> 
+  bind_rows(not_ignore_PN_standard) |> 
+  mutate(`Overall_Total Ignore`= `Education_Total Ignore` + `Health_Total Ignore`)
+
+
+not_ignore_PN_standard |> 
+  relocate(`PN Classification`) |> 
+  flextable() |> 
+  separate_header()|> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+```
