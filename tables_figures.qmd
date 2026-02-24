@@ -64,7 +64,7 @@ long_cond_sample_size <- long_cond |>
 * Types of Randomization procedure
 * Number of Experimental Conditions
 * Number of primary or secondary analysis
-* Sample size (Challenging pin in for now)
+* Sample size
 ```{r}
 calc_freq <- function(experimental_dat, variable){
 var_label <- deparse(substitute(variable))
@@ -193,7 +193,6 @@ bind_rows(individual_format, cluster_format) |>
   hline_bottom(part = "body") |> 
   hline_top(part = "body") |> 
   hline_top(part = "header")
-```
 ```
 
 
