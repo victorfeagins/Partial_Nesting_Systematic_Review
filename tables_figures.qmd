@@ -272,13 +272,6 @@ location_pn_dat <- full_experiment_dat |>
          obs_TP = obs_treatment_provider_percent > 0 & obs_treatment_provider_percent < 1,
          obs_group = obs_treatment_group_percent > 0 & obs_treatment_group_percent < 1)
 
-# weird <- location_pn_dat |> 
-#   filter(exp_TP == FALSE, exp_group == FALSE, exp_level_random == "Individual") |> 
-#   pull(study_id) 
-
-# long_cond |>  # The multigroup PNRDs
-#   filter(study_id %in% weird) |> 
-#   View()
 
 location_pn_dat_stat <- location_pn_dat |> 
   group_by(exp_level_random, exp_TP, exp_group, obs_TP, obs_group) |> 
@@ -286,9 +279,18 @@ location_pn_dat_stat <- location_pn_dat |>
   ungroup() 
 
 location_pn_dat_stat |> 
+  mutate(partial_class = case_when(
+          exp_level_random == "Mix" ~ "Complex",
+          exp_group  ~ "Grouped",
+         !exp_group & exp_TP ~ "Treatment Provider",
+         !exp_group & !exp_TP & obs_group ~ "Observational Grouped",
+         !exp_group & !exp_TP & !obs_group & obs_TP ~ "Observational Treatment Provider",
+         .default = "Multi-Group")) |> 
   mutate(across(-exp_level_random, .fns = ~ifelse(.x == FALSE, NA, .x))) |> 
-  arrange(exp_level_random, desc(Count)) |> 
+  relocate(exp_level_random,partial_class, exp_group, exp_TP, obs_group, obs_TP, Count) |> 
+  arrange(exp_level_random,exp_group, exp_TP, obs_group, obs_TP) |> 
   rename(`Unit of Randomization` = exp_level_random, 
+         `Type of Partial Nesting` = partial_class,
          `Experimental Unit_Treatment Provider Present` = exp_TP,
          `Experimental Unit_Group Setting Present` = exp_group,
          `Observational Unit_Treatment Provider Present` = obs_TP,
@@ -302,6 +304,7 @@ location_pn_dat_stat |>
   hline_top(part = "body") |> 
   hline_top(part = "header")
 ```
+
 
 Sample Size of partial clusters:
 
