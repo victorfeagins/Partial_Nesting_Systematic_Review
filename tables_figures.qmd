@@ -235,7 +235,7 @@ number_exp_dat |>
   separate_header() |> 
   align(align = "center", part = "header") |>
   padding(i = ~ !(Publication %in% c("Overall", "Health", "Education")), j = "Publication", padding.left = 20) |> 
-  add_header_row(values = c("","Unit of Randomization", ""),
+  add_header_row(values = c("","Level of Randomization", ""),
   colwidths = c(1,6, 2)) |> 
   autofit() |> 
   font(font = "Times New Roman", part = "all") |> 
@@ -270,23 +270,24 @@ location_pn_dat <- full_experiment_dat |>
   mutate(exp_TP = exp_treatment_provider_percent > 0 & exp_treatment_provider_percent < 1,
          exp_group = exp_treatment_group_percent > 0 & exp_treatment_group_percent < 1, 
          obs_TP = obs_treatment_provider_percent > 0 & obs_treatment_provider_percent < 1,
-         obs_group = obs_treatment_group_percent > 0 & obs_treatment_group_percent < 1)
-
-
-location_pn_dat_stat <- location_pn_dat |> 
-  group_by(exp_level_random, exp_TP, exp_group, obs_TP, obs_group) |> 
-  summarise(Count = n()) |> 
-  ungroup() 
-
-location_pn_dat_stat |> 
+         obs_group = obs_treatment_group_percent > 0 & obs_treatment_group_percent < 1) |> 
   mutate(partial_class = case_when(
-          exp_level_random == "Mix" ~ "Complex",
+          exp_level_random == "Mix" ~ "Other",
           exp_group  ~ "Grouped",
          !exp_group & exp_TP ~ "Treatment Provider",
          !exp_group & !exp_TP & obs_group ~ "Observational Grouped",
          !exp_group & !exp_TP & !obs_group & obs_TP ~ "Observational Treatment Provider",
-         .default = "Multi-Group")) |> 
-  mutate(across(-exp_level_random, .fns = ~ifelse(.x == FALSE, NA, .x))) |> 
+         .default = "Complex"))
+
+
+location_pn_dat_stat <- location_pn_dat |> 
+  group_by(exp_level_random,partial_class, exp_TP, exp_group, obs_TP, obs_group) |> 
+  summarise(Count = n()) |> 
+  ungroup() 
+
+
+  location_pn_dat_stat |> 
+  mutate(across(c(-exp_level_random, -partial_class, -Count), .fns = ~ifelse(.x == FALSE, NA, "x"))) |> 
   relocate(exp_level_random,partial_class, exp_group, exp_TP, obs_group, obs_TP, Count) |> 
   arrange(exp_level_random,exp_group, exp_TP, obs_group, obs_TP) |> 
   rename(`Unit of Randomization` = exp_level_random, 
@@ -294,7 +295,8 @@ location_pn_dat_stat |>
          `Experimental Unit_Treatment Provider Present` = exp_TP,
          `Experimental Unit_Group Setting Present` = exp_group,
          `Observational Unit_Treatment Provider Present` = obs_TP,
-         `Observational Unit_Group Setting Present` = obs_group) |> 
+         `Observational Unit_Group Setting Present` = obs_group,
+         `Number of Experiments` = Count) |> 
   flextable() |> 
   separate_header() |>
   autofit() |> 
@@ -309,22 +311,52 @@ location_pn_dat_stat |>
 Sample Size of partial clusters:
 
 ```{r}
-exp_treatment_groups_samplesize <- long_cond_sample_size |> 
-  filter(partial_nest == "PN") |> 
-  filter(cond_treatment_groups_exp == "Yes") |> 
-  select(cond_exp_units_count_edit_num,  cond_treatment_groups_num)
+explore_samplesize <- long_cond_sample_size |> 
+  filter(partial_nest == "PN", partial_class != "Complex-PNRD",  partial_class != "MultiGroup IRD") |> 
+  mutate(partial_cluster_sample_size = case_when(
+  partial_class == "Treatment Provider CRD" ~ cond_treatment_provider_num,
+  partial_class == "Grouped CRD" ~ cond_treatment_groups_num,
+  partial_class == "Observational Treatment Provider CRD" ~ cond_treatment_provider_num,
+  partial_class == "Observational Group CRD" ~ cond_treatment_groups_num,
+  partial_class == "Grouped IRD" ~ cond_treatment_groups_num,
+  partial_class == "Treatment Provider IRD" ~ cond_treatment_provider_num)) |> 
+  mutate(relevant_unit_size = case_when(  
+  partial_class == "Treatment Provider CRD" ~ cond_exp_units_count_edit_num,
+  partial_class == "Grouped CRD" ~ cond_exp_units_count_edit_num,
+  partial_class == "Observational Treatment Provider CRD" ~ cond_obs_units_count_edit_num,
+  partial_class == "Observational Group CRD" ~ cond_obs_units_count_edit_num,
+  partial_class == "Grouped IRD" ~ cond_exp_units_count_edit_num,
+  partial_class == "Treatment Provider IRD" ~ cond_exp_units_count_edit_num)) |> 
+  select(study_id, experiment, partial_class, cond_name, cond_treatment_groups_num, cond_treatment_provider_num, cond_treatment_groups_num_source, cond_treatment_provider_num_source, cond_comments, cond_treatment_groups_exp_detail, cond_treatment_groups_obs_detail, cond_treatment_provider_exp_detail, cond_treatment_provider_obs_detail,partial_cluster_sample_size, relevant_unit_size, cond_exp_units_count_edit_num) |> 
+  filter(!is.na(partial_cluster_sample_size)) |> #Removes treatment condition that did not have partial nesting
+  mutate(partial_cluster_sample_size =case_when(
+    study_id == 111568543 ~ "9*", #Total number of coaches across all conditions since 6 are shared and 3 are unique to their condition
+    .default = partial_cluster_sample_size))
 ```
 
+```{r}
+explore_samplesize |> 
+  mutate(partial_cluster_sample_size = tolower(partial_cluster_sample_size)) |> 
+  group_by(study_id, experiment) |> 
+  summarise(studies_no_report = sum(str_detect(partial_cluster_sample_size, "report"))) |> 
+  ungroup() |> 
+  summarise(experiments_no_report = sum(studies_no_report != 0))
+```
+
+```{r}
+explore_samplesize |> 
+  filter(!is.na(partial_cluster_sample_size)) |> 
+  View()
+```
 
 Types of Partial nesting:
 
 ```{r}
-type_partial_nesting_dat <- full_experiment_dat |> 
-  filter(partial_nest == "PN") |> 
-  group_by(partial_class, journal_type) |> 
+type_partial_nesting_dat <- location_pn_dat |> 
+  group_by(exp_level_random, partial_class, journal_type) |> 
   summarise(Total= n(),
             `Not Ignored` = sum(analytical_partial_cluster_edit != "Ignored")) |> 
-  pivot_wider(id_cols = partial_class,
+  pivot_wider(id_cols = c(exp_level_random, partial_class),
               names_from = journal_type,
               values_from = c(Total, `Not Ignored`),
               names_glue = "{.value}_{journal_type}") |> 
@@ -332,14 +364,15 @@ type_partial_nesting_dat <- full_experiment_dat |>
          `Not Ignored_All` = `Not Ignored_Education` + `Not Ignored_Health`) |> 
   ungroup()
 type_partial_nesting_dat <- type_partial_nesting_dat |> 
-  summarise(across(-partial_class, sum)) |> 
+  summarise(across(-c(partial_class, exp_level_random), sum)) |> 
   mutate(partial_class = "Overall") |> 
   bind_rows(type_partial_nesting_dat)
 
 type_partial_nesting_dat |> 
   arrange(desc(`Total_All`)) |> 
-  relocate(partial_class, starts_with("Total"), starts_with("Not Ignored")) |> 
-  rename(`PN Classification` = partial_class) |> 
+  relocate(exp_level_random, partial_class, starts_with("Total"), starts_with("Not Ignored")) |> 
+  rename(`PN Classification` = partial_class,
+         `Level of Randomization` = exp_level_random) |> 
   flextable() |> 
   separate_header()|> 
   autofit() |> 
@@ -350,6 +383,13 @@ type_partial_nesting_dat |>
   hline_top(part = "header")
 
 ```
+
+Types of Partial Nesting pt 2
+```{r}
+location_pn_dat_stat |> 
+  group_by()
+```
+
 
 Cluster Assignment Mechanism:
 ```{r}
