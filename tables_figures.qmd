@@ -21,7 +21,7 @@ full_experiment_dat <- full_experiment_dat |>
 
 long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
 add_to_cond <- full_experiment_dat |> 
-  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest, partial_class, pub_journal, partial_standardization, partial_diversity, partial_standardization_diversity_source, partial_assign_type)
+  select(citation_id, study_id, response_id, experiment, exp_level_random, exp_random_procedure, partial_nest, partial_class, pub_journal, partial_standardization, partial_diversity, partial_standardization_diversity_source, partial_assign_type, partial_size)
 
 long_cond <- long_cond |> 
   left_join(add_to_cond, by = join_by(citation_id, study_id, response_id, experiment))
@@ -397,6 +397,40 @@ location_pn_dat |>  #Number of studies that did not describe how cluster's were 
   summarise(sum(str_detect(string = toupper(partial_assign_detail), "^NOT|^NOR|UNCLEAR"), na.rm = TRUE))
 ```
 
+Reporting of Partial clusters size:
+```{r}
+table(location_pn_dat$partial_size)
+table(location_pn_dat$partial_size, location_pn_dat$partial_class)
+```
+
+Reporting number of partial clusters
+
+```{r}
+long_cond_report_num_PC <- long_cond_sample_size |> 
+  filter(partial_nest == "PN") |> 
+  filter(!is.na(cond_treatment_provider_num) | !is.na(cond_treatment_groups_num) ) |>#Removes treatment conditions that do not have any treatment nesting
+  mutate(partial_cluster_report_num = case_when( #Indicator if any information is given around the number of partial clusters
+  str_detect(toupper(cond_treatment_groups_num), "^NOT|^NOR|UNCLEAR") & str_detect(toupper(cond_treatment_provider_num), "^NOT|^NOR|UNCLEAR") ~ FALSE,
+  partial_class == "Treatment Provider" ~  !str_detect(toupper(cond_treatment_provider_num), "^NOT|^NOR|UNCLEAR"),
+  partial_class == "Grouped" ~ !str_detect(toupper(cond_treatment_groups_num), "^NOT|^NOR|UNCLEAR"),
+  partial_class == "Observational Treatment Provider" ~ !str_detect(toupper(cond_treatment_provider_num), "^NOT|^NOR|UNCLEAR"),
+  partial_class == "Observational Grouped" ~ !str_detect(toupper(cond_treatment_groups_num), "^NOT|^NOR|UNCLEAR"),
+  partial_class == "Complex" ~ ifelse(partial_size == "Yes", TRUE, NA), #If size is not reported need to judge if number of partial clusters is reported
+  partial_class == "Other" ~ ifelse(partial_size == "Yes", TRUE, NA))) |> #If size is not reported need to judge if number of partial clusters is reported
+  mutate(partial_cluster_report_num = case_when( #manually fixing those that have NA 
+    study_id == "111571616" ~ FALSE, #Individual Programming vs Pair programming with three combinations of pairs
+    study_id == "111565397" ~ TRUE, #this experiment reported the number of group settings
+    study_id == "111570010" ~ FALSE, #Does not report number of treatment provider or size
+    .default = partial_cluster_report_num
+  ))
+partial_nest_report_num_dat <- long_cond_report_num_PC |> 
+  group_by(study_id, experiment) |> 
+  summarise(exp_report_info = sum(partial_cluster_report_num) >= 1)
+
+table(partial_nest_report_num_dat$exp_report_info)
+
+```
+
 Sample Size of partial clusters:
 ```{r}
 explore_samplesize <- long_cond_sample_size |> 
@@ -459,14 +493,14 @@ number of experiments with just 1 partial cluster.
 
 ```{r}
 pc_samplesize_types  <- explore_samplesize |> 
-  group_by(exp_level_random, partial_class,study_id,  experiment) |> #Sums across treatment conditions, each row is experiment
+  group_by(exp_level_random, partial_class,study_id,  experiment) |> #Sums across treatment conditions so that each row is experiment
   summarise(studies_no_report = sum(str_detect(tolower(partial_cluster_sample_size_edit), "report")),
-            single_partial_cluster = sum(partial_cluster_sample_size_edit == "1"),
-            studies_unclear = sum(str_detect(tolower(partial_cluster_sample_size_edit), "unclear"))) |> 
+            studies_unclear = sum(str_detect(tolower(partial_cluster_sample_size_edit), "unclear")),
+            studies_report_calculate = sum(str_detect(partial_cluster_sample_size_edit, "^\\d+(\\.\\d+)?$"))) |> 
   group_by(exp_level_random, partial_class) |>
-  summarise(experiments_no_report = sum(studies_no_report != 0), #
-            experiments_single_cluster = sum(single_partial_cluster != 0),
+  summarise(experiments_no_report = sum(studies_no_report != 0),
             experiments_unclear = sum(studies_unclear != 0),
+            experiments_report = sum(studies_report_calculate != 0),
             experiments_total = n()) |> 
   ungroup()
 pc_samplesize_types_stat <- pc_samplesize_types |> 
@@ -475,25 +509,6 @@ pc_samplesize_types_stat <- pc_samplesize_types |>
   bind_rows(pc_samplesize_types)
 
 ```
-
-```{r}
-pc_samplesize_types_stat |> 
-  relocate(exp_level_random, partial_class, experiments_total, everything()) |> 
-  rename(`Total` = experiments_total,
-         `Unclear Number` = experiments_unclear,
-         `Report One PC` = experiments_single_cluster,
-         `Did Not Report` = experiments_no_report,
-         `Unit of Randomization` = exp_level_random,
-         `Type of Partial Nesting` = partial_class) |> 
-  flextable() |> 
-  autofit() |> 
-  font(font = "Times New Roman", part = "all") |> 
-  border_remove() |> 
-  hline_bottom(part = "body") |> 
-  hline_top(part = "body") |> 
-  hline_top(part = "header")
-```
-
 
 
 
@@ -504,34 +519,40 @@ For each type of partial class mean, median, min, max, lower_quartile, upper_qua
 
 
 ```{r}
-pc_samplesize_stats <- explore_samplesize |> 
+pc_samplesize_exp <- explore_samplesize |> 
   mutate(partial_cluster_sample_size_edit_num = suppressWarnings(as.numeric(partial_cluster_sample_size_edit))) |> 
-  mutate(pc_per_unit = partial_cluster_sample_size_edit_num/relevant_unit_size_edit) |> 
+  mutate(unit_per_pc = relevant_unit_size_edit/partial_cluster_sample_size_edit_num) |> 
   group_by(exp_level_random, partial_class, study_id, experiment) |> 
-  summarise(average_pc_per_unit = mean(pc_per_unit),
-            mean_pc = mean(partial_cluster_sample_size_edit_num)) |> 
+  summarise(average_unit_pc = mean(unit_per_pc, na.rm = TRUE), #average across treatment conditions 
+            mean_pc = mean(partial_cluster_sample_size_edit_num, na.rm = TRUE))
+
+units_per_pc_stat <- pc_samplesize_exp |> 
   group_by(exp_level_random, partial_class) |> 
-  summarise(across(.cols = c(mean_pc), 
+  summarise(across(.cols = c(average_unit_pc), 
                    .fns = list(min =~min(.x, na.rm = TRUE),
                                q25 = ~quantile(.x, probs = .25, na.rm = TRUE), 
                                mean = ~mean(.x, na.rm = TRUE),
                                med = ~median(.x, na.rm = TRUE),
                                q75 = ~quantile(.x, probs = .75, na.rm = TRUE), 
                                max=~max(.x, na.rm = TRUE))),
-                               number_experiments_reported_pc_samplesize = sum(!is.na(mean_pc)),
-                               total_experiments = n())
+                               number_experiments = sum(!is.na(average_unit_pc)))
 
-pc_samplesize_stats |> 
-  rename(`Number of Experiments_Total` = total_experiments,
-         `Number of Experiments_Reported # of Partial Clusters` = number_experiments_reported_pc_samplesize,
+total_pc_stat <- location_pn_dat |> 
+  group_by(partial_class, exp_level_random) |> 
+  summarise(total = n())
+units_per_pc_stat <- units_per_pc_stat |> 
+  left_join(total_pc_stat)
+units_per_pc_stat |> 
+  rename(`Number of Experiments_Reported Info` = number_experiments,
+         `Number of Experiments_Total` = total,
          `Unit of Randomization` = exp_level_random,
          `Type of Partial Nesting` = partial_class, 
-         Min = mean_pc_min, 
-         `25th Quartile` = mean_pc_q25, 
-         Mean = mean_pc_mean, 
-         Median = mean_pc_med, 
-         `75th Quartile` = mean_pc_q75, 
-         Max = mean_pc_max) |> 
+         Min = average_unit_pc_min, 
+         `25th Quartile` = average_unit_pc_q25, 
+         Mean = average_unit_pc_mean, 
+         Median = average_unit_pc_med, 
+         `75th Quartile` = average_unit_pc_q75, 
+         Max = average_unit_pc_max) |> 
   flextable() |> 
   colformat_double() |> 
   separate_header() |> 
