@@ -440,7 +440,9 @@ explore_samplesize <- long_cond_sample_size |>
   partial_class == "Grouped" ~ cond_treatment_groups_num,
   partial_class == "Observational Treatment Provider" ~ cond_treatment_provider_num,
   partial_class == "Observational Grouped" ~ cond_treatment_groups_num)) |> 
-  mutate(relevant_unit_size = case_when(  
+  mutate(relevant_unit_size = case_when( 
+  study_id == "111565404"  ~ 100, #100 students are placed into teams
+  study_id == "111565472" ~ 1835, #1836 math students nested within 70 math teachers whom did 58 group settings 
   partial_class == "Treatment Provider" ~ cond_exp_units_count_edit_num,
   partial_class == "Grouped" ~ cond_exp_units_count_edit_num,
   partial_class == "Observational Treatment Provider" ~ cond_obs_units_count_edit_num,
@@ -524,7 +526,9 @@ pc_samplesize_exp <- explore_samplesize |>
   mutate(unit_per_pc = relevant_unit_size_edit/partial_cluster_sample_size_edit_num) |> 
   group_by(exp_level_random, partial_class, study_id, experiment) |> 
   summarise(average_unit_pc = mean(unit_per_pc, na.rm = TRUE), #average across treatment conditions 
-            mean_pc = mean(partial_cluster_sample_size_edit_num, na.rm = TRUE))
+            mean_pc = mean(partial_cluster_sample_size_edit_num, na.rm = TRUE)) |> 
+  mutate(average_unit_pc = ifelse(study_id == 111571690, 17.5, average_unit_pc), #This study the observational unit is students but groups were made with teachers so this reflects the number of teachers in the study reather then the number of students under their care
+         mean_pc = ifelse(study_id == 111571690, 32, mean_pc))
 
 units_per_pc_stat <- pc_samplesize_exp |> 
   group_by(exp_level_random, partial_class) |> 
@@ -564,9 +568,49 @@ units_per_pc_stat |>
   hline_top(part = "header")
 ```
 
+Number of partial clusters 
+```{r}
+number_pc_per_experiment_stat <- pc_samplesize_exp |> 
+  group_by(exp_level_random, partial_class) |> 
+  summarise(across(.cols = c(mean_pc), 
+                   .fns = list(min =~min(.x, na.rm = TRUE),
+                               q25 = ~quantile(.x, probs = .25, na.rm = TRUE), 
+                               mean = ~mean(.x, na.rm = TRUE),
+                               med = ~median(.x, na.rm = TRUE),
+                               q75 = ~quantile(.x, probs = .75, na.rm = TRUE), 
+                               max=~max(.x, na.rm = TRUE))),
+                               number_experiments = sum(!is.na(mean_pc)))
 
-Number of Partial clusters within experimental units
+total_pc_stat <- location_pn_dat |> 
+  group_by(partial_class, exp_level_random) |> 
+  summarise(total = n())
+number_pc_per_experiment_stat <- number_pc_per_experiment_stat |> 
+  left_join(total_pc_stat)
+number_pc_per_experiment_stat |> 
+  rename(`Number of Experiments_Reported Info` = number_experiments,
+         `Number of Experiments_Total` = total,
+         `Unit of Randomization` = exp_level_random,
+         `Type of Partial Nesting` = partial_class, 
+         Min = mean_pc_min, 
+         `25th Quartile` = mean_pc_q25, 
+         Mean = mean_pc_mean, 
+         Median = mean_pc_med, 
+         `75th Quartile` = mean_pc_q75, 
+         Max = mean_pc_max) |> 
+  flextable() |> 
+  colformat_double() |> 
+  separate_header() |> 
+  autofit() |> 
+  font(font = "Times New Roman", part = "all") |> 
+  border_remove() |> 
+  hline_bottom(part = "body") |> 
+  hline_top(part = "body") |> 
+  hline_top(part = "header")
+```
 
+
+## Research Question 3
+3.	To what extent and by what statistical methods do researchers account for partial nesting? Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
 
 Types of Partial nesting:
 
@@ -629,20 +673,6 @@ cluster_assignment_table |>
   hline_top(part = "header")
 
 ```
-
-Cluster Size and Number:
-
-Challenging data is really messy
-```{r}
-# long_cond |> 
-#   filter(partial_nest == "PN") |> 
-#   select(partial_class, cond_treatment_groups_num, cond_treatment_provider_num) |> 
-#   View()
-```
-
-
-## Research Question 3
-3.	To what extent and by what statistical methods do researchers account for partial nesting? Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
 
 ```{r}
 analytical_approach_dat <- full_experiment_dat |> 
