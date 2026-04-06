@@ -612,7 +612,7 @@ number_pc_per_experiment_stat |>
 ## Research Question 3
 3.	To what extent and by what statistical methods do researchers account for partial nesting? Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
 
-Types of Partial nesting:
+Accounting for Parital Nesting by journal type and PN Classification
 
 ```{r}
 type_partial_nesting_dat <- location_pn_dat |> 
@@ -622,9 +622,10 @@ type_partial_nesting_dat <- location_pn_dat |>
   pivot_wider(id_cols = c(exp_level_random, partial_class),
               names_from = journal_type,
               values_from = c(Total, `Not Ignored`),
-              names_glue = "{.value}_{journal_type}") |> 
-  mutate(`Total_All` = Total_Education + Total_Health,
-         `Not Ignored_All` = `Not Ignored_Education` + `Not Ignored_Health`) |> 
+              names_glue = "{journal_type}_{.value}") |> 
+  mutate(across(everything(), ~replace_na(.x, 0))) |> 
+  mutate(`All_Total` = Education_Total + Health_Total,
+         `All_Not Ignored` = `Education_Not Ignored` + `Health_Not Ignored`) |> 
   ungroup()
 type_partial_nesting_dat <- type_partial_nesting_dat |> 
   summarise(across(-c(partial_class, exp_level_random), sum)) |> 
@@ -632,8 +633,8 @@ type_partial_nesting_dat <- type_partial_nesting_dat |>
   bind_rows(type_partial_nesting_dat)
 
 type_partial_nesting_dat |> 
-  arrange(desc(`Total_All`)) |> 
-  relocate(exp_level_random, partial_class, starts_with("Total"), starts_with("Not Ignored")) |> 
+  arrange(desc(`All_Total`)) |> 
+  relocate(exp_level_random, partial_class, starts_with("Education"), starts_with("Health"), starts_with("All")) |> 
   rename(`PN Classification` = partial_class,
          `Level of Randomization` = exp_level_random) |> 
   flextable() |> 
@@ -648,44 +649,15 @@ type_partial_nesting_dat |>
 ```
 
 
-```{r}
-cluster_assignment_table <- full_experiment_dat |> 
-  filter(partial_nest == "PN") |> 
-  group_by(partial_assign_type, journal_type) |> 
-  summarise(`Total`= n(),
-            `Not Ignored` = sum(analytical_partial_cluster != "Ignored")) |> 
-  ungroup() |> 
-  complete(partial_assign_type, journal_type, fill = list(`Total` = 0)) |> 
-  pivot_wider(id_cols = partial_assign_type,
-              names_from = journal_type,
-              values_from = c(`Total`),
-              names_glue = "{journal_type}") |> 
-  mutate(Overall = Education + Health)
-cluster_assignment_table |> 
-  rename(`Cluster Assignment Mechanism`= partial_assign_type) |> 
-  flextable() |> 
-  separate_header()|> 
-  autofit() |> 
-  font(font = "Times New Roman", part = "all") |> 
-  border_remove() |> 
-  hline_bottom(part = "body") |> 
-  hline_top(part = "body") |> 
-  hline_top(part = "header")
-
-```
 
 ```{r}
-analytical_approach_dat <- full_experiment_dat |> 
-  filter(partial_nest == "PN",) |> 
+analytical_approach_dat <- location_pn_dat |> 
   group_by(analytical_partial_cluster_edit) |> 
   summarise(Total = n()) |> 
+  mutate(analytical_partial_cluster_edit = ifelse( Total == 1 & analytical_partial_cluster_edit != "Fixed effects", "Other", analytical_partial_cluster_edit)) |> 
+  group_by(analytical_partial_cluster_edit) |> 
+  summarise(Total = sum(Total)) |> 
   rename(`Analytical Approach`= analytical_partial_cluster_edit)
-
-analytical_approach_dat <- full_experiment_dat |> 
-  filter(partial_nest == "PN",) |>
-  summarise(Total = n()) |> 
-  mutate(`Analytical Approach` = "Overall") |> 
-  bind_rows(analytical_approach_dat)
 
 
 analytical_approach_dat |> 

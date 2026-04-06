@@ -5,11 +5,11 @@ library(readr) #For read_csv which automatic column renaming is useful for outpu
 library(flextable) # For Creating Tables
 
 
-raw_dat_everything <- read_csv("Extract_Codes/Partial_Nesting_Review - ES Level - 02-23-2026 10_30 PM.csv", col_types = cols(.default = col_character())) #Reading in all columns as character
+raw_dat_everything <- read_csv("Extract_Codes/Partial_Nesting_Review - ES Level - 04-06-2026 10_57 AM.csv", col_types = cols(.default = col_character())) #Reading in all columns as character
 
 
 raw_dat <- raw_dat_everything |> 
-  filter(coder_1 == "Victor Feagins", screener_1 == "Victor Feagins") #filters out training set 
+  filter(created_by == "feagins@wisc.edu", screener_1 == "Victor Feagins") #filters out training set & nick's work
 
 ## Sorting Columns -----
 raw_pub  <- raw_dat |> #Data at the publication level
