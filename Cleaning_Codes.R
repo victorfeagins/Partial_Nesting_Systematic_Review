@@ -5,7 +5,7 @@ library(readr) #For read_csv which automatic column renaming is useful for outpu
 library(flextable) # For Creating Tables
 
 
-raw_dat_everything <- read_csv("Extract_Codes/Partial_Nesting_Review - ES Level - 04-06-2026 10_57 AM.csv", col_types = cols(.default = col_character())) #Reading in all columns as character
+raw_dat_everything <- read_csv("Extract_Codes/Partial_Nesting_Review - ES Level - 04-10-2026 04_17 PM.csv", col_types = cols(.default = col_character())) #Reading in all columns as character
 
 
 raw_dat <- raw_dat_everything |> 
@@ -149,26 +149,31 @@ full_experiment_dat <- full_experiment_dat |>
 write.csv(full_experiment_dat, file = "Clean_Data/experimental_data.csv", row.names = FALSE)
 write.csv(long_cond, file = "Clean_Data/treatment_condition_data.csv",  row.names = FALSE)
 
-## Cleaning Abstract Form -----
-abstract_raw <- read.csv("Abstract_Screened/Abstract_Screening_Final.csv")
-abstract_codes <- abstract_raw |> 
-  select(study_id, citation_id,eligible_experimental, eligible_quantitative, eligible_study, eligible_comments, maybe_partial_nesting)
- abstract_codes <- abstract_codes |> 
-    left_join(experimental_score, by = join_by(citation_id == ID))
-sum(abstract_codes$eligible_study == "Eligible")
+## Cleaning Screening Data -----
+abstract_screen_raw <- read.csv("Abstract_Screened/Partial_Nesting_Review - Abstract Screening - 04-11-2026 04_30 PM.csv")
+full_text_screen_raw <- read.csv("Full_Text_Screen/Partial_Nesting_Review - ES Level - 04-10-2026 04_25 PM.csv")
+citation_data_raw <- read.csv("Citation_Data/Partial_Nesting_Review - Citations - 04-11-2026 05_55 PM.csv")
+abstract_screen <-abstract_screen_raw |> 
+  mutate(Citation.ID = as.character(Citation.ID))
 
-n_distinct(full_experiment_dat$citation_id)
-eligible_study <- abstract_codes |> 
-  filter(eligible_study == "Eligible")
-n_distinct(full_experiment_dat$citation_id)
+full_text_screen <- full_text_screen_raw |> 
+  mutate(study_id = as.character(study_id)) |> 
+  filter(created_by == "feagins@wisc.edu") #removes extra rows
 
-eligible_study$citation_id[!(eligible_study$citation_id %in% full_experiment_dat$citation_id)] # Some studies I forgot to code!!!
-
-abstract_codes |> 
-  filter(eligible_study == "Eligible") |> 
-  with(hist(Score))
-abstract_codes |> 
-  filter(eligible_study == "Ineligible") |> 
-  with(hist(Score))
+citation_data <- citation_data_raw |> 
+  mutate(citation_id = as.character(citation_id))
 
 
+screening_data <- abstract_screen |> 
+  mutate(Citation.ID = as.character(Citation.ID)) |> 
+  left_join(experimental_score, by = join_by(Citation.ID == ID)) |> 
+  left_join(full_text_screen, by = join_by(Citation.ID == study_id)) |> 
+  select(Citation.ID, Decision, eligible_study, Score) |> 
+  left_join(citation_data, by = join_by(Citation.ID == citation_id)) |> 
+  select(Citation.ID, Decision, eligible_study, journal_book_title, Score) |> 
+  rename(abstract_screen = Decision, full_text_screen = eligible_study) |> 
+  filter(!(is.na(full_text_screen) & abstract_screen == 1)) #removes training papers for Nick
+
+
+## Saving Data -----
+write.csv(screening_data, "Clean_Data/screening_data.csv", row.names = FALSE)
