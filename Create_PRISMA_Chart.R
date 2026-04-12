@@ -57,6 +57,18 @@ abstract_eligible_dat  <- screening_dat |>
 abstract_eligible <- abstract_eligible_dat |> 
   with(table(journal_type))
 
+full_text_experimental_dat <- abstract_eligible_dat |> 
+  filter(eligible_experimental == "Yes")
+
+full_text_experimental <- full_text_experimental_dat |> 
+  with(table(journal_type))
+
+full_text_experimental_quan_dat <- full_text_experimental_dat |> 
+  filter(eligible_quantitative == "Yes")
+
+full_text_experimental_quan <- full_text_experimental_quan_dat |> 
+  with(table(journal_type))
+
 full_text_eligible_dat <- abstract_eligible_dat |> 
   filter(full_text_screen == "Eligible")
 
@@ -73,7 +85,13 @@ remove_nonRCTs - sampled #number not sampled
 
 sampled - abstract_eligible #not eligible abstract wise
 
-abstract_eligible - full_text_eligible #not eligible fill text screen
+abstract_eligible - full_text_experimental #Not Randomized design
+
+full_text_experimental - full_text_experimental_quan #Not Causal Comparison estimation
+
+full_text_experimental_quan - full_text_eligible #Other reasons eligible 
+
+
 
 full_text_eligible #included in the review
 
@@ -83,6 +101,12 @@ csv_file <- system.file("extdata", "PRISMA.csv", package = "PRISMA2020")
 prisma_template <- read.csv(csv_file)
 
 non_academic_ed <- (remove_dupe - remove_nonresearch)["Education"]
+not_random_ed <- (abstract_eligible - full_text_experimental)["Education"]
+not_quant_ed <- (full_text_experimental - full_text_experimental_quan)["Education"]
+other_ed <- (full_text_experimental_quan - full_text_eligible )["Education"]
+
+full_text_reject <- str_glue("Not Randomized Study, {not_random_ed}; Not Causal Comparison, {not_quant_ed}; Other, {other_ed}")
+
 removed_text_education <- str_glue("Not research articles (n = {non_academic_ed})")
 my_prisma <- prisma_template |> 
   mutate(n = case_when(description == "Records identified from: Databases" ~ as.character(start_value["Education"]),
@@ -96,6 +120,7 @@ my_prisma <- prisma_template |>
                        description == "Reports assessed for eligibility (databases and registers)" ~ as.character((abstract_eligible)["Education"]),
                        description == "New studies included in review" ~ as.character(full_text_eligible["Education"]),
                        description == "Reports of new included studies" ~ "",
+                       description == "Reports excluded (databases and registers): [separate reasons and numbers using ; e.g. Reason1, xxx; Reason2, xxx; Reason3, xxx]" ~ full_text_reject,
          .default = n),
         boxtext = case_when(
                        description == "Records marked as ineligible by automation tools" ~ str_glue("{removed_text_education} \\nIneligible via automation"),
