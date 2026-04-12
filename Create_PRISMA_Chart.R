@@ -94,10 +94,13 @@ my_prisma <- prisma_template |>
                        description == "Records excluded (databases and registers)" ~ as.character((sampled- abstract_eligible)["Education"]),
                        description == "Reports sought for retrieval (databases and registers)" ~ as.character((abstract_eligible)["Education"]),
                        description == "Reports assessed for eligibility (databases and registers)" ~ as.character((abstract_eligible)["Education"]),
+                       description == "New studies included in review" ~ as.character(full_text_eligible["Education"]),
+                       description == "Reports of new included studies" ~ "",
          .default = n),
         boxtext = case_when(
                        description == "Records marked as ineligible by automation tools" ~ str_glue("{removed_text_education} \\nIneligible via automation"),
                        description == "Records removed for other reasons" ~ "Records not sampled",
+                       description == "New studies included in review" ~ "Studies included in review",
          .default = boxtext
     ))
 
