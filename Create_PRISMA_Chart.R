@@ -90,6 +90,10 @@ my_prisma <- prisma_template |>
                        description == "Duplicate records" ~ as.character((start_value - remove_dupe)["Education"]),
                        description == "Records marked as ineligible by automation tools" ~ as.character((remove_nonresearch- remove_nonRCTs)["Education"]),
                        description == "Records removed for other reasons" ~ as.character((remove_nonRCTs - sampled)["Education"]),
+                       description == "Records screened (databases and registers)" ~ as.character((sampled)["Education"]),
+                       description == "Records excluded (databases and registers)" ~ as.character((sampled- abstract_eligible)["Education"]),
+                       description == "Reports sought for retrieval (databases and registers)" ~ as.character((abstract_eligible)["Education"]),
+                       description == "Reports assessed for eligibility (databases and registers)" ~ as.character((abstract_eligible)["Education"]),
          .default = n),
         boxtext = case_when(
                        description == "Records marked as ineligible by automation tools" ~ str_glue("{removed_text_education} \\nIneligible via automation"),
