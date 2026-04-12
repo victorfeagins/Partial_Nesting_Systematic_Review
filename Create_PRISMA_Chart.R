@@ -76,3 +76,30 @@ sampled - abstract_eligible #not eligible abstract wise
 abstract_eligible - full_text_eligible #not eligible fill text screen
 
 full_text_eligible #included in the review
+
+## Loading In PRISMA Data ------
+
+csv_file <- system.file("extdata", "PRISMA.csv", package = "PRISMA2020")
+prisma_template <- read.csv(csv_file)
+
+non_academic_ed <- (remove_dupe - remove_nonresearch)["Education"]
+removed_text_education <- str_glue("Not research articles (n = {non_academic_ed})")
+my_prisma <- prisma_template |> 
+  mutate(n = case_when(description == "Records identified from: Databases" ~ as.character(start_value["Education"]),
+                       description == "Records identified from: Registers" ~ "",
+                       description == "Duplicate records" ~ as.character((start_value - remove_dupe)["Education"]),
+                       description == "Records marked as ineligible by automation tools" ~ as.character((remove_nonresearch- remove_nonRCTs)["Education"]),
+                       description == "Records removed for other reasons" ~ as.character((remove_nonRCTs - sampled)["Education"]),
+         .default = n),
+        boxtext = case_when(
+                       description == "Records marked as ineligible by automation tools" ~ str_glue("{removed_text_education} \\nIneligible via automation"),
+                       description == "Records removed for other reasons" ~ "Records not sampled",
+         .default = boxtext
+    ))
+
+PRISMA_graph_dat <- PRISMA_data(my_prisma)
+
+PRISMA_flowdiagram(PRISMA_graph_dat, 
+  interactive = FALSE,
+  previous = FALSE,
+  other = FALSE)
