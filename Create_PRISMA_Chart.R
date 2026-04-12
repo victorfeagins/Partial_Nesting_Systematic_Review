@@ -127,6 +127,7 @@ my_prisma <- prisma_template |>
                        description == "Records marked as ineligible by automation tools" ~ str_glue("{removed_text} \\n Ineligible via automation"),
                        description == "Records removed for other reasons" ~ "Records not sampled",
                        description == "New studies included in review" ~ "Studies included in review",
+                       description == "Yellow title box; Identification of new studies via databases and registers" ~ "",
          .default = boxtext
     ))
 
@@ -142,9 +143,11 @@ PRISMA_graph_ed <- PRISMA_data(ed_PRISMA)
 PRISMA_flowdiagram(PRISMA_graph_health, 
   interactive = FALSE,
   previous = FALSE,
-  other = FALSE)
+  other = FALSE,
+  title_colour = "white")
 
 PRISMA_flowdiagram(PRISMA_graph_ed, 
   interactive = FALSE,
   previous = FALSE,
-  other = FALSE)
+  other = FALSE,
+  title_colour = "white")
