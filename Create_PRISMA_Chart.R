@@ -75,25 +75,25 @@ full_text_eligible_dat <- abstract_eligible_dat |>
 full_text_eligible <- full_text_eligible_dat |> 
   with(table(journal_type))
 
-start_value - remove_dupe #Number removed dupe
+# start_value - remove_dupe #Number removed dupe
 
-remove_dupe - remove_nonresearch #Number removed non-research
+# remove_dupe - remove_nonresearch #Number removed non-research
 
-remove_nonresearch- remove_nonRCTs #number removed non RCT
+# remove_nonresearch- remove_nonRCTs #number removed non RCT
 
-remove_nonRCTs - sampled #number not sampled 
+# remove_nonRCTs - sampled #number not sampled 
 
-sampled - abstract_eligible #not eligible abstract wise
+# sampled - abstract_eligible #not eligible abstract wise
 
-abstract_eligible - full_text_experimental #Not Randomized design
+# abstract_eligible - full_text_experimental #Not Randomized design
 
-full_text_experimental - full_text_experimental_quan #Not Causal Comparison estimation
+# full_text_experimental - full_text_experimental_quan #Not Causal Comparison estimation
 
-full_text_experimental_quan - full_text_eligible #Other reasons eligible 
+# full_text_experimental_quan - full_text_eligible #Other reasons eligible 
 
 
 
-full_text_eligible #included in the review
+# full_text_eligible #included in the review
 
 ## Loading In PRISMA Data ------
 
@@ -140,14 +140,21 @@ PRISMA_graph_health <- PRISMA_data(health_PRISMA)
 
 PRISMA_graph_ed <- PRISMA_data(ed_PRISMA)
 
-PRISMA_flowdiagram(PRISMA_graph_health, 
+health_plot <- PRISMA_flowdiagram(PRISMA_graph_health, 
   interactive = FALSE,
   previous = FALSE,
   other = FALSE,
-  title_colour = "white")
+  title_colour = "white",
+  font = "Times",
+  fontsize = 12)
 
-PRISMA_flowdiagram(PRISMA_graph_ed, 
+ed_plot <- PRISMA_flowdiagram(PRISMA_graph_health, 
   interactive = FALSE,
   previous = FALSE,
   other = FALSE,
-  title_colour = "white")
+  title_colour = "white",
+  font = "Times",
+  fontsize = 12)
+
+PRISMA_save(health_plot, filename = "health_prisma.svg", overwrite = TRUE)
+PRISMA_save(ed_plot, filename = "ed_prisma.svg", overwrite = TRUE)
