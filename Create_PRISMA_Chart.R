@@ -148,7 +148,7 @@ health_plot <- PRISMA_flowdiagram(PRISMA_graph_health,
   font = "Times",
   fontsize = 12)
 
-ed_plot <- PRISMA_flowdiagram(PRISMA_graph_health, 
+ed_plot <- PRISMA_flowdiagram(PRISMA_graph_ed, 
   interactive = FALSE,
   previous = FALSE,
   other = FALSE,
