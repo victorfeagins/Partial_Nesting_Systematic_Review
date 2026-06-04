@@ -212,5 +212,5 @@ ed_plot <- PRISMA_flowdiagram(
   fontsize = 12
 )
 
-# PRISMA_save(health_plot, filename = "health_prisma.tiff", overwrite = TRUE)
-# PRISMA_save(ed_plot, filename = "ed_prisma.tiff", overwrite = TRUE)
+PRISMA_save(health_plot, filename = "health_prisma.pdf", overwrite = TRUE)
+PRISMA_save(ed_plot, filename = "ed_prisma.pdf", overwrite = TRUE)

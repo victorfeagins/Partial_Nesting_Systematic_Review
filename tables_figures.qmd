@@ -20,13 +20,18 @@ full_experiment_dat <- full_experiment_dat |>
     analytical_partial_cluster_edit = case_when(
       study_id %in%
         c(
-          "111568461",
-          "111565034",
-          "111576601",
-          "111565413",
-          "111565408"
+          "111568461", # All had clusters of size 1
+          "111565034", # All had clusters of size 1
+          "111576601", # All had clusters of size 1
+          "111565413", # All had clusters of size 1
+          "111565408" # All had clusters of size 1
         ) ~ "Ignored",
-      study_id %in% c("111570022") ~ "Other,Random Effects,Ignored",
+      study_id %in%
+        c(
+          "111575276", # Tested to see if clustering was present
+          "111570022" #ICC calculated but ignored in treatment effect model
+        ) ~ "Other",
+      study_id %in% c("111571355") ~ "Ignored", #Discuss in limitations that clustering can be addressed in future study
       .default = analytical_partial_cluster
     )
   ) #These studies only have one partial cluster so coded them as ignored
@@ -586,7 +591,14 @@ explore_samplesize <- explore_samplesize |>
       .default = relevant_unit_size
     )
   ) |>
-  ungroup()
+  ungroup() |>
+  mutate(
+    partial_class = ifelse(
+      partial_cluster_sample_size_edit == 1,
+      "Single",
+      partial_class
+    )
+  )
 ```
 
 ```{r}
@@ -618,47 +630,91 @@ location_pn_dat <- location_pn_dat |>
     experiment,
     partial_cluster_sample_size,
     relevant_unit_size
-  ))
+  )) |>
+  mutate(
+    partial_class = case_when(
+      str_detect(partial_cluster_sample_size, "^1$") |
+        str_detect(partial_cluster_sample_size, "^1\\*") ~ "Single",
+      .default = partial_class
+    )
+  )
 
 nrow(distinct(location_pn_dat))
 ```
 
 Grouping Structures of Partial Nesting
+
 ```{r}
-group_structures_stat <- location_pn_dat |>
-  group_by(exp_level_random, partial_class) |>
-  summarise(number_of_experiments = n()) |>
-  pivot_wider(
-    id_cols = c(partial_class),
-    names_from = c(exp_level_random),
-    values_from = number_of_experiments
-  ) |>
-  mutate(across(everything(), ~ replace_na(.x, 0))) |>
-  mutate(`All Designs` = Cluster + Individual + Mix) |>
-  ungroup()
+partial_class_by_level_journal_class <- location_pn_dat |>
+  group_by(exp_level_random, partial_class, journal_type) |>
+  summarise(Total = n())
 
-
-overall_group_structures_stat <- group_structures_stat |>
-  summarise(across(c(-partial_class), sum)) |>
+partial_class_by_level_journal <- location_pn_dat |>
+  group_by(exp_level_random, journal_type) |>
+  summarise(Total = n()) |>
   mutate(partial_class = "Overall")
 
-group_structures_stat |>
-  bind_rows(overall_group_structures_stat) |>
-  arrange(desc(`All Designs`)) |>
-  relocate(partial_class, Individual, Cluster, Mix, `All Designs`) |>
-  rename(`Partial Nesting Classification` = partial_class) |>
+partial_class_by_journal <- location_pn_dat |>
+  group_by(journal_type) |>
+  summarise(
+    Total = n()
+  ) |>
+  mutate(partial_class = "", exp_level_random = "Overall")
+
+partial_class_stats <- bind_rows(
+  partial_class_by_level_journal_class,
+  partial_class_by_level_journal,
+  partial_class_by_journal
+) |>
+  pivot_wider(
+    id_cols = c(exp_level_random, partial_class),
+    names_from = journal_type,
+    values_from = Total
+  ) |>
+  mutate(across(everything(), ~ replace_na(.x, 0))) |>
+  mutate(Overall = Education + Health) |>
+  mutate(
+    exp_level_random = factor(
+      exp_level_random,
+      levels = c("Overall", "Cluster", "Individual", "Mix")
+    ),
+    partial_class = factor(
+      partial_class,
+      levels = c(
+        "Overall",
+        "Grouped",
+        "Treatment Provider",
+        "Observational Grouped",
+        "Observational Treatment Provider",
+        "Complex",
+        "Other",
+        "Single"
+      )
+    )
+  )
+```
+
+```{r}
+partial_class_stats |>
+  arrange(exp_level_random, partial_class) |>
+  relocate(
+    exp_level_random,
+    partial_class,
+    starts_with("Education"),
+    starts_with("Health"),
+    starts_with("Overall")
+  ) |>
+  rename(
+    `Partial Nesting Classification` = partial_class,
+    `Level of Randomization` = exp_level_random
+  ) |>
   flextable() |>
-  separate_header() |>
   padding(
     i = ~ !(`Partial Nesting Classification` %in% c("Overall")),
     j = "Partial Nesting Classification",
     padding.left = 20
   ) |>
-  add_header_row(
-    values = c("", "Level of Randomization"),
-    colwidths = c(2, 3)
-  ) |>
-  align(align = "center", part = "header") |>
+  separate_header() |>
   autofit() |>
   font(font = "Times New Roman", part = "all") |>
   border_remove() |>
@@ -670,6 +726,9 @@ group_structures_stat |>
 Cluster Assignment Mechanism:
 
 ```{r}
+location_pn_dat <- location_pn_dat |>
+  filter(partial_class != "Single")
+
 location_pn_dat <- location_pn_dat |>
   mutate(
     partial_assign_type_edit = case_when(
@@ -870,6 +929,7 @@ For each type of partial class mean, median, min, max, lower_quartile, upper_qua
 
 ```{r}
 pc_samplesize_exp <- explore_samplesize |>
+  filter(partial_class != "Single") |>
   mutate(
     partial_cluster_sample_size_edit_num = suppressWarnings(as.numeric(
       partial_cluster_sample_size_edit
@@ -1325,39 +1385,72 @@ Analytical Methods:
 
 ```{r}
 analytical_approach_dat <- location_pn_dat |>
-  group_by(exp_level_random, analytical_partial_cluster_edit) |>
+  group_by(exp_level_random, journal_type, analytical_partial_cluster_edit) |>
   summarise(Total = n()) |>
   mutate(
     analytical_partial_cluster_edit = ifelse(
       Total == 1 &
         analytical_partial_cluster_edit != "Fixed effects" &
         analytical_partial_cluster_edit != "Robust variance estimation" &
+        analytical_partial_cluster_edit != "Random effects" &
         analytical_partial_cluster_edit != "Single",
       "Other",
       analytical_partial_cluster_edit
     )
   ) |>
-  group_by(exp_level_random, analytical_partial_cluster_edit) |>
+  group_by(exp_level_random, journal_type, analytical_partial_cluster_edit) |>
   summarise(Total = sum(Total))
 
 
 analytical_approach_total <- location_pn_dat |>
-  group_by(exp_level_random) |>
+  group_by(exp_level_random, journal_type) |>
   summarise(Total = n()) |>
   mutate(analytical_partial_cluster_edit = "Overall")
 
-analytical_approach_dat_summary <- bind_rows(
+analytical_approach_dat_all <- bind_rows(
   analytical_approach_dat,
   analytical_approach_total
 )
 
+unique(analytical_approach_dat_all$analytical_partial_cluster_edit)
+
+analytical_levels <- c(
+  "Overall",
+  "Random effects",
+  "Robust variance estimation",
+  "Fixed effects",
+  "Other",
+  "Ignored",
+  "Single"
+)
+
+analytical_approach_dat_summary <- analytical_approach_dat_all |>
+  pivot_wider(
+    id_cols = c(exp_level_random, analytical_partial_cluster_edit),
+    values_from = Total,
+    names_from = journal_type
+  ) |>
+  mutate(across(everything(), ~ replace_na(.x, 0))) |>
+  mutate(Overall = Education + Health)
+
 analytical_approach_dat_summary |>
+  mutate(
+    analytical_partial_cluster_edit = factor(
+      analytical_partial_cluster_edit,
+      levels = analytical_levels
+    )
+  ) |>
   arrange(
     exp_level_random,
-    desc(Total),
-    desc(analytical_partial_cluster_edit)
+    analytical_partial_cluster_edit
   ) |>
-  relocate(exp_level_random, analytical_partial_cluster_edit, Total) |>
+  relocate(
+    exp_level_random,
+    analytical_partial_cluster_edit,
+    starts_with("Education"),
+    starts_with("Health"),
+    starts_with("Overall")
+  ) |>
   rename(
     `Analytical Approach` = analytical_partial_cluster_edit,
     `Level of Randomization` = exp_level_random
