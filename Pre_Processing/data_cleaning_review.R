@@ -2,7 +2,7 @@ library(dplyr)
 library(tidyr)
 library(purrr)
 library(stringr)
-file_names <- list.files("System_Review", full.names = TRUE)
+file_names <- list.files("Pre_Processing/Raw_Citation_Data/", full.names = TRUE)
 scores_files <- str_subset(file_names, "score")
 detail_files <- str_subset(file_names, "detail")
 
@@ -105,10 +105,13 @@ pals_papers <- articles |>
 
 to_be_screened <- my_search |>
   filter(Score > 0)
+
 all_results |>
   filter(as.numeric(Year) >= 2020) |> #removes Pals study
-  write.csv("Clean_Data/all_records.csv", row.names = FALSE)
-write.csv(to_be_screened, "to_be_screened.csv", row.names = FALSE)
+  write.csv("Cleaning_Analysis/Clean_Data/all_records.csv", row.names = FALSE)
+
+
+write.csv(to_be_screened, "Cleaning_Analysis/Clean_Data/to_be_screened.csv", row.names = FALSE)
 
 ### Determining Research Numbers
 nrow(all_results)
