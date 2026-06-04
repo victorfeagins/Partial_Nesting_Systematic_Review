@@ -2,7 +2,7 @@ library(dplyr)
 
 
 ## Reading in Data -----
-screenable <- read.csv("to_be_screened.csv")
+screenable <- read.csv("Analysis/Clean_Data/to_be_screened.csv")
 
 screenable |>
   group_by(journal_simple) |>
