@@ -13,8 +13,8 @@ library(tidyr) #For pivoting
 library(purrr)
 library(flextable) # For Creating Tables
 library(ggplot2)
-full_experiment_dat <- read.csv("Clean_Data/experimental_data.csv")
-screening_dat <- read.csv("Clean_Data/screening_data.csv") #Abstract and Full text screening data
+full_experiment_dat <- read.csv(here::here("Analysis/Clean_Data/experimental_data.csv"))
+screening_dat <- read.csv(here::here("Analysis/Clean_Data/screening_data.csv")) #Abstract and Full text screening data
 full_experiment_dat <- full_experiment_dat |>
   mutate(
     analytical_partial_cluster_edit = case_when(
@@ -36,7 +36,7 @@ full_experiment_dat <- full_experiment_dat |>
     )
   ) #These studies only have one partial cluster so coded them as ignored
 
-long_cond <- read.csv("Clean_Data/treatment_condition_data.csv")
+long_cond <- read.csv(here::here("Analysis/Clean_Data/treatment_condition_data.csv"))
 add_to_cond <- full_experiment_dat |>
   select(
     citation_id,
