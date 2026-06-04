@@ -108,34 +108,7 @@ to_be_screened <- my_search |>
 
 all_results |>
   filter(as.numeric(Year) >= 2020) |> #removes Pals study
-  write.csv("Cleaning_Analysis/Clean_Data/all_records.csv", row.names = FALSE)
+  write.csv("Analysis/Clean_Data/all_records.csv", row.names = FALSE)
 
 
-write.csv(to_be_screened, "Cleaning_Analysis/Clean_Data/to_be_screened.csv", row.names = FALSE)
-
-### Determining Research Numbers
-nrow(all_results)
-all_results |>
-  filter(as.numeric(Year) >= 2020) |> #Number of articles not from Pals Study
-  group_by(DOI) |>
-  arrange(Score, .by_group = TRUE) |>
-  slice_head(n = 1) |>
-  filter(!is.na(Authors)) |>
-  filter(!str_starts(Title, "Correction")) |> #not interested in corrections
-  filter(!str_starts(Title, "Comment")) |> #not intererested in comments or commentary
-  filter(!str_starts(Title, "Corrigendum")) |> #not interested in Corrigendum
-  filter(Score > 0) |>
-  nrow()
-
-
-to_be_screened |> #
-  mutate(
-    ed = journal_simple %in%
-      c(
-        "JOURNAL OF EDUCATIONAL PSYCHOLOGY",
-        "JOURNAL OF EDUCATIONAL RESEARCH",
-        "JOURNAL OF RESEARCH ON EDUCATIONAL EFFECTIVENESS"
-      )
-  ) |>
-  group_by(ed) |>
-  summarise(n())
+write.csv(to_be_screened, "Analysis/Clean_Data/to_be_screened.csv", row.names = FALSE)
