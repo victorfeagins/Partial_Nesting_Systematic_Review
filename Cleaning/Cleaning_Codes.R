@@ -4,11 +4,12 @@ library(tidyr) #For pivoting
 library(readr) #For read_csv which automatic column renaming is useful for output from meta reviewer
 library(flextable) # For Creating Tables
 
-
 raw_dat_everything <- read_csv(
-  "Extract_Codes/Partial_Nesting_Review - ES Level - 05-15-2026 10_45 AM.csv",
+  "Cleaning/Extract_Codes/Partial_Nesting_Review - ES Level - 05-15-2026 10_45 AM.csv",
   col_types = cols(.default = col_character())
 ) #Reading in all columns as character
+
+screenable <- read.csv("Analysis/Clean_Data/to_be_screened.csv") # to add automation scores to codes
 
 
 raw_dat <- raw_dat_everything |>
@@ -267,7 +268,6 @@ full_experiment_dat <- full_experiment_dat |>
   left_join(pn_exp) #adding in pn_type
 
 ## Adding Automation Score
-screenable <- read.csv("Clean_Data/to_be_screened.csv")
 experimental_score <- screenable |>
   select(ID, Score) |>
   mutate(ID = as.character(ID))
@@ -279,24 +279,24 @@ full_experiment_dat <- full_experiment_dat |>
 
 write.csv(
   full_experiment_dat,
-  file = "Clean_Data/experimental_data.csv",
+  file = "Analysis/Clean_Data/experimental_data.csv",
   row.names = FALSE
 )
 write.csv(
   long_cond,
-  file = "Clean_Data/treatment_condition_data.csv",
+  file = "Analysis/Clean_Data/treatment_condition_data.csv",
   row.names = FALSE
 )
 
 ## Cleaning Screening Data -----
 abstract_screen_raw <- read.csv(
-  "Abstract_Screened/Partial_Nesting_Review - Abstract Screening - 04-11-2026 04_30 PM.csv"
+  "Cleaning/Abstract_Screened/Partial_Nesting_Review - Abstract Screening - 04-11-2026 04_30 PM.csv"
 )
 full_text_screen_raw <- read.csv(
-  "Full_Text_Screen/Partial_Nesting_Review - ES Level - 04-10-2026 04_25 PM.csv"
+  "Cleaning/Full_Text_Screen/Partial_Nesting_Review - ES Level - 04-10-2026 04_25 PM.csv"
 )
 citation_data_raw <- read.csv(
-  "Citation_Data/Partial_Nesting_Review - Citations - 04-11-2026 05_55 PM.csv"
+  "Cleaning/Citation_Data/Partial_Nesting_Review - Citations - 04-11-2026 05_55 PM.csv"
 )
 abstract_screen <- abstract_screen_raw |>
   mutate(Citation.ID = as.character(Citation.ID))
@@ -338,4 +338,4 @@ screening_data <- abstract_screen |>
 
 
 ## Saving Data -----
-write.csv(screening_data, "Clean_Data/screening_data.csv", row.names = FALSE)
+write.csv(screening_data, "Analysis/Clean_Data/screening_data.csv", row.names = FALSE)

@@ -2,8 +2,8 @@ library(PRISMA2020)
 library(dplyr)
 library(stringr)
 
-screening_dat <- read.csv("Clean_Data/screening_data.csv") #Abstract and Full text screening data
-all_records_dat <- read.csv("Clean_Data/all_records.csv") #No filtered all records
+screening_dat <- read.csv("Analysis/Clean_Data/screening_data.csv") #Abstract and Full text screening data
+all_records_dat <- read.csv("Analysis/Clean_Data/all_records.csv") #No filtered all records
 
 all_records_dat <- all_records_dat |>
   mutate(
