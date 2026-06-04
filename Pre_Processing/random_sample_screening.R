@@ -128,13 +128,13 @@ batch_2_e_dat <- exportable[batch_2_e_indices, ]
 batch_3_e_dat <- exportable[batch_3_e_indices, ]
 
 
-# write.csv(batch_1_h_dat, file = "batch_1_h_citations_title_abstract_screening.csv", row.names = FALSE)
-# write.csv(batch_2_h_dat, file = "batch_2_h_citations_title_abstract_screening.csv", row.names = FALSE)
-# write.csv(batch_3_h_dat, file = "batch_3_h_citations_title_abstract_screening.csv", row.names = FALSE)
+write.csv(batch_1_h_dat, file = "Pre_Processing/Batches/batch_1_h_citations_title_abstract_screening.csv", row.names = FALSE)
+write.csv(batch_2_h_dat, file = "Pre_Processing/Batches/batch_2_h_citations_title_abstract_screening.csv", row.names = FALSE)
+write.csv(batch_3_h_dat, file = "Pre_Processing/Batches/batch_3_h_citations_title_abstract_screening.csv", row.names = FALSE)
 
-# write.csv(batch_1_e_dat, file = "batch_1_e_citations_title_abstract_screening.csv", row.names = FALSE)
-# write.csv(batch_2_e_dat, file = "batch_2_e_citations_title_abstract_screening.csv", row.names = FALSE)
-# write.csv(batch_3_e_dat, file = "batch_3_e_citations_title_abstract_screening.csv", row.names = FALSE)
+write.csv(batch_1_e_dat, file = "Pre_Processing/Batches/batch_1_e_citations_title_abstract_screening.csv", row.names = FALSE)
+write.csv(batch_2_e_dat, file = "Pre_Processing/Batches/batch_2_e_citations_title_abstract_screening.csv", row.names = FALSE)
+write.csv(batch_3_e_dat, file = "Pre_Processing/Batches/batch_3_e_citations_title_abstract_screening.csv", row.names = FALSE)
 
 # Training Sample -----
 exportable_train <- screenable |>
@@ -182,12 +182,12 @@ batch_4_e_train_export <- batch_4_e_dat |>
 
 write.csv(
   batch_3_h_train_export,
-  file = "Batches/training_batch_3_h.csv",
+  file = "Pre_Processing/Batches/training_batch_3_h.csv",
   row.names = FALSE
 )
 
 write.csv(
   batch_4_e_train_export,
-  file = "Batches/training_batch_4_e.csv",
+  file = "Pre_Processing/Batches/training_batch_4_e.csv",
   row.names = FALSE
 )
