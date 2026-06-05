@@ -114,15 +114,18 @@ long_cond_sample_size <- long_cond |>
   ungroup()
 ```
 
-```{r}
+
+```{r, include = FALSE}
+#Number of experiments published per article
 full_experiment_dat |>
   group_by(citation_id) |>
   summarise(number_study_published = n()) |>
   group_by(number_study_published) |>
-  summarise(number_articles = n())
+  summarise(number_articles = n()) |>
+  rename(`Number of Experiments` = number_study_published, `Number of Articles` = number_articles) |> 
+  flextable()
 ```
 
-## Screening Process Stats
 
 ```{r}
 screening_dat <- screening_dat |>
@@ -147,7 +150,7 @@ screening_dat <- screening_dat |>
   )
 ```
 
-```{r}
+```{r, include=FALSE}
 library(yardstick)
 roc_curve(screening_dat, full_text_screen, Score) |>
   ggplot(aes(x = 1 - specificity, y = sensitivity)) +
@@ -183,12 +186,7 @@ screening_dat |>
 
 
 
-## Article Characteristics 
-* Year of publication
-* Types of Randomization procedure
-* Number of Experimental Conditions
-* Number of primary or secondary analysis
-* Sample size
+Table Study Characteristics 
 ```{r}
 calc_freq <- function(experimental_dat, variable) {
   var_label <- deparse(substitute(variable))
@@ -251,7 +249,7 @@ exp_characteristics |>
   hline_top(part = "header")
 ```
 
-Sample size per randomized condition:
+Table Baseline Sample Size within Experimental Conditions
 ```{r}
 # cluster randomized
 sample_size_info <- long_cond_sample_size |>
@@ -333,9 +331,8 @@ sample_size_format |>
 ```
 
 
-## Research Question 1 
-1.	How prevalent are partial nested designs among randomized experiments in education and public health research?
 
+Table Prevalence of Partial Nested Designs 
 ```{r}
 count_articles <- function(experimental_dat, ...) {
   #... is the grouping variable for journal type or specific publication journal
@@ -427,10 +424,7 @@ number_exp_dat |>
 #   dataviewR::dataviewer()
 ```
 
-## Research Question 2
-2.	What are the prevailing characteristics of partially nested designs, specifically regarding grouping structures, cluster assignment mechanisms, and sample size distributions?
 
-Location of Partial Nesting:
 ```{r}
 location_pn_dat <- full_experiment_dat |>
   filter(partial_nest == "PN") |>
@@ -471,7 +465,7 @@ long_cond_sample_size <- long_cond_sample_size |> #replacing old partial classes
   left_join(new_partial_classes)
 ```
 
-```{r}
+```{r, include = FALSE}
 location_pn_dat_stat <- location_pn_dat |>
   group_by(
     exp_level_random,
@@ -639,10 +633,8 @@ location_pn_dat <- location_pn_dat |>
     )
   )
 
-nrow(distinct(location_pn_dat))
 ```
 
-Grouping Structures of Partial Nesting
 
 ```{r}
 partial_class_by_level_journal_class <- location_pn_dat |>
@@ -694,6 +686,8 @@ partial_class_stats <- bind_rows(
   )
 ```
 
+
+Table Number of Experiments with Partial Nesting Structures
 ```{r}
 partial_class_stats |>
   arrange(exp_level_random, partial_class) |>
@@ -723,7 +717,7 @@ partial_class_stats |>
   hline_top(part = "header")
 ```
 
-Cluster Assignment Mechanism:
+Table Types of Cluster Assignment Mechanisms
 
 ```{r}
 location_pn_dat <- location_pn_dat |>
@@ -815,22 +809,9 @@ cluster_assignment_stat |>
   hline(i = 1, j = 3:8, part = "header")
 ```
 
-```{r}
-location_pn_dat |>
-  filter(
-    exp_level_random == "Cluster",
-    partial_class == "Treatment Provider"
-  ) |>
-  with(table(exp_exp_unit))
-```
 
-Reporting of Partial clusters size:
-```{r}
-table(location_pn_dat$partial_size)
-table(location_pn_dat$partial_size, location_pn_dat$partial_class)
-```
 
-Reporting number of partial clusters
+
 
 ```{r}
 long_cond_report_num_PC <- long_cond_sample_size |>
@@ -879,15 +860,10 @@ partial_nest_report_num_dat <- long_cond_report_num_PC |>
   group_by(study_id, experiment) |>
   summarise(exp_report_info = sum(partial_cluster_report_num) >= 1)
 
-table(partial_nest_report_num_dat$exp_report_info)
+#table(partial_nest_report_num_dat$exp_report_info)
 ```
 
 
-
-Trying to summarise across experiments
-number of experiments that did not report the number of partial clusters or size of partial clusters to calculate the number. 
-number it is unclear due to the particular design characteristics 
-number of experiments with just 1 partial cluster. 
 
 ```{r}
 pc_samplesize_types <- explore_samplesize |>
@@ -1017,68 +993,9 @@ pc_samplesize_stat_summary <- bind_rows(
 ```
 
 
-Average units per partial cluster:
 
-```{r}
-pc_samplesize_stat_summary |>
-  select(
-    exp_level_random,
-    partial_class,
-    number_experiments,
-    starts_with("average_unit_pc")
-  ) |>
-  mutate(
-    exp_level_random = factor(
-      exp_level_random,
-      levels = c("Overall", "Cluster", "Individual")
-    ),
-    partial_class = factor(
-      partial_class,
-      levels = c(
-        "Overall",
-        "Grouped",
-        "Observational Grouped",
-        "Treatment Provider",
-        "Observational Treatment Provider"
-      )
-    )
-  ) |>
-  arrange(exp_level_random, partial_class) |>
-  rename(
-    `Number of Experiments` = number_experiments,
-    `Level of Randomization` = exp_level_random,
-    `Partial Nesting Classification` = partial_class,
-    Min = average_unit_pc_min,
-    `25th Quartile` = average_unit_pc_q25,
-    Mean = average_unit_pc_mean,
-    SD = average_unit_pc_sd,
-    Median = average_unit_pc_med,
-    `75th Quartile` = average_unit_pc_q75,
-    Max = average_unit_pc_max
-  ) |>
-  relocate(
-    `Level of Randomization`,
-    `Partial Nesting Classification`,
-    `Number of Experiments`,
-    everything()
-  ) |>
-  flextable() |>
-  padding(
-    i = ~ !(`Partial Nesting Classification` %in% c("Overall")),
-    j = "Partial Nesting Classification",
-    padding.left = 20
-  ) |>
-  colformat_double() |>
-  separate_header() |>
-  autofit() |>
-  font(font = "Times New Roman", part = "all") |>
-  border_remove() |>
-  hline_bottom(part = "body") |>
-  hline_top(part = "body") |>
-  hline_top(part = "header")
-```
 
-Number of partial clusters 
+Table Number of partial clusters per Treatment Condition
 ```{r}
 pc_samplesize_stat_summary |>
   select(
@@ -1139,10 +1056,67 @@ pc_samplesize_stat_summary |>
 ```
 
 
-## Research Question 3
-3.	To what extent and by what statistical methods do researchers account for partial nesting? Among studies that account for partial nesting, how frequently and in what ways are cluster assignment mechanisms addressed in the analysis?
+Table Average units per partial cluster
 
-Accounting for Parital Nesting by journal type and PN Classification
+```{r}
+pc_samplesize_stat_summary |>
+  select(
+    exp_level_random,
+    partial_class,
+    number_experiments,
+    starts_with("average_unit_pc")
+  ) |>
+  mutate(
+    exp_level_random = factor(
+      exp_level_random,
+      levels = c("Overall", "Cluster", "Individual")
+    ),
+    partial_class = factor(
+      partial_class,
+      levels = c(
+        "Overall",
+        "Grouped",
+        "Observational Grouped",
+        "Treatment Provider",
+        "Observational Treatment Provider"
+      )
+    )
+  ) |>
+  arrange(exp_level_random, partial_class) |>
+  rename(
+    `Number of Experiments` = number_experiments,
+    `Level of Randomization` = exp_level_random,
+    `Partial Nesting Classification` = partial_class,
+    Min = average_unit_pc_min,
+    `25th Quartile` = average_unit_pc_q25,
+    Mean = average_unit_pc_mean,
+    SD = average_unit_pc_sd,
+    Median = average_unit_pc_med,
+    `75th Quartile` = average_unit_pc_q75,
+    Max = average_unit_pc_max
+  ) |>
+  relocate(
+    `Level of Randomization`,
+    `Partial Nesting Classification`,
+    `Number of Experiments`,
+    everything()
+  ) |>
+  flextable() |>
+  padding(
+    i = ~ !(`Partial Nesting Classification` %in% c("Overall")),
+    j = "Partial Nesting Classification",
+    padding.left = 20
+  ) |>
+  colformat_double() |>
+  separate_header() |>
+  autofit() |>
+  font(font = "Times New Roman", part = "all") |>
+  border_remove() |>
+  hline_bottom(part = "body") |>
+  hline_top(part = "body") |>
+  hline_top(part = "header")
+```
+
 
 ```{r}
 cluster_treated_dat <- full_experiment_dat |>
@@ -1227,7 +1201,7 @@ cluster_treat_summary <- bind_rows(
   )
 ```
 
-Cluster treatment in CRD designs
+Tables Methods for Addressing Clustering in CRDS
 
 ```{r}
 cluster_treat_levels <- sort(cluster_treat_summary$cluster_treatment)[
@@ -1283,7 +1257,7 @@ cluster_treat_summary |>
   hline_top(part = "header")
 ```
 
-Ignoring Partial Clusters
+
 
 ```{r}
 not_ignored_analytical <- location_pn_dat |>
@@ -1318,6 +1292,9 @@ not_ignored_summary <- bind_rows(
   not_ignored_analytical_overall
 )
 ```
+
+Table Prevalence of Not Ignoring Partial Nesting
+
 ```{r}
 not_ignored_pivot <- not_ignored_summary |>
   pivot_wider(
@@ -1381,7 +1358,7 @@ not_ignored_pivot |>
 ```
 
 
-Analytical Methods:
+Table Approaches used to Address Partial Nesting
 
 ```{r}
 analytical_approach_dat <- location_pn_dat |>
@@ -1412,7 +1389,7 @@ analytical_approach_dat_all <- bind_rows(
   analytical_approach_total
 )
 
-unique(analytical_approach_dat_all$analytical_partial_cluster_edit)
+#unique(analytical_approach_dat_all$analytical_partial_cluster_edit)
 
 analytical_levels <- c(
   "Overall",
@@ -1469,7 +1446,8 @@ analytical_approach_dat_summary |>
   hline_top(part = "header")
 ```
 
-Controlling for Cluster assignment Mechanism
+Table Prevalence of Accounting for Cluster Assignment
+
 ```{r}
 account_assignment_dat <- location_pn_dat |>
   group_by(analytical_partial_cluster_edit) |>
@@ -1538,9 +1516,9 @@ account_assignment_dat |>
   hline_top(part = "header")
 ```
 
-## Research Question 4
-4.	Does training or standardizing partial clusters result in lower chance of analytically adjusting for partial nesting? Does having diverse partial clusters result in an increased chance of analytically adjusting for partial nesting? 
 
+
+Table Prevalence to Report Variability or Standardizing partial Clusters
 ```{r}
 library(gtsummary)
 
@@ -1576,22 +1554,3 @@ location_pn_dat |>
   hline_top(part = "header")
 ```
 
-```{r}
-#Confirming p values were calculated as expected
-location_pn_dat |>
-  filter(analytical_partial_cluster_edit != "Single") |>
-  with(table(not_ignore_pn, partial_diversity)) |>
-  fisher.test()
-
-location_pn_dat |>
-  filter(analytical_partial_cluster_edit != "Single") |>
-  with(table(not_ignore_pn, partial_standardization)) |>
-  fisher.test()
-```
-
-## Extra Tables
-
-
-```{r}
-location_pn_dat$analytical_outcome_type
-```
