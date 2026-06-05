@@ -149,18 +149,7 @@ screening_dat <- screening_dat |>
     pred_13 = as.factor(ifelse(Score >= 13, "Eligible", "Ineligible"))
   )
 
-screening_dat |> 
-  group_by(journal_type, full_text_screen) |> 
-  summarise(min(Score),
-            mean(Score),
-            quantile(Score, .5),
-            max(Score))
 
-screening_dat |> 
-  ggplot(aes(x = Score)) +
-  geom_histogram() +
-  facet_wrap(~journal_type + full_text_screen, scales = "free_y") + 
-  scale_x_continuous(limits = c(1, NA), expand = c(0, 0))
 ```
 
 ```{r, include=FALSE}
@@ -195,6 +184,19 @@ screening_dat |>
   geom_abline(lty = 3) +
   coord_equal() +
   theme_bw()
+
+screening_dat |> 
+  group_by(journal_type, full_text_screen) |> 
+  summarise(min(Score),
+            mean(Score),
+            quantile(Score, .5),
+            max(Score))
+
+screening_dat |> 
+  ggplot(aes(x = Score)) +
+  geom_histogram() +
+  facet_wrap(~journal_type + full_text_screen, scales = "free_y") + 
+  scale_x_continuous(limits = c(1, NA), expand = c(0, 0))
 ```
 
 
