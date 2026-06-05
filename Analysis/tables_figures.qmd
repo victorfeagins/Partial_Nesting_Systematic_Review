@@ -148,6 +148,19 @@ screening_dat <- screening_dat |>
     pred = factor("Eligible", levels = c("Eligible", "Ineligible")),
     pred_13 = as.factor(ifelse(Score >= 13, "Eligible", "Ineligible"))
   )
+
+screening_dat |> 
+  group_by(journal_type, full_text_screen) |> 
+  summarise(min(Score),
+            mean(Score),
+            quantile(Score, .5),
+            max(Score))
+
+screening_dat |> 
+  ggplot(aes(x = Score)) +
+  geom_histogram() +
+  facet_wrap(~journal_type + full_text_screen, scales = "free_y") + 
+  scale_x_continuous(limits = c(1, NA), expand = c(0, 0))
 ```
 
 ```{r, include=FALSE}
@@ -1532,25 +1545,32 @@ location_pn_dat <- location_pn_dat |>
   )
 
 location_pn_dat |>
-  filter(analytical_partial_cluster_edit != "Single") |>
   select(not_ignore_pn, partial_diversity, partial_standardization) |>
-  tbl_summary(
-    by = not_ignore_pn, # This splits the table by "No" and "Yes" for ignoring
-    label = list(
-      partial_diversity ~ "Reported Partial Clusters Varied in Charactersitics",
-      partial_standardization ~ "Reported Partial Clusters were Trained or Standardized"
-    )
+  rename(
+    `Reported Partial Clusters Varied in Characteristics` = partial_diversity,
+    `Reported Partial Clusters were Trained or Standardized` = partial_standardization
   ) |>
-  add_p(test = list(all_categorical() ~ "fisher.test")) %>% # Automatically calculates Fisher's Exact or Chi-sq
-  add_overall() |> # Adds a column for the total N
-  modify_header(label = "**Addressed Partial Nesting**") |>
-  bold_labels() |>
-  as_flex_table() |>
-  autofit() |>
-  font(font = "Times New Roman", part = "all") |>
-  border_remove() |>
-  hline_bottom(part = "body") |>
-  hline_top(part = "body") |>
-  hline_top(part = "header")
+  tbl_summary(
+    by = not_ignore_pn,
+    percent = "row",
+    type = all_categorical() ~ "categorical",
+    missing = "no"
+  ) |>
+  add_overall() |>
+  add_p(
+    test = all_categorical() ~ "fisher.test",
+    pvalue_fun = ~style_pvalue(.x, digits = 3) 
+  ) |>
+  modify_header(
+    label = "**Addressed Partial Nesting**",
+    stat_0 = "**Overall**\nN = {N}",
+    stat_1 = "**No**\nN = {n}",
+    stat_2 = "**Yes**\nN = {n}"
+  ) |>
+  bold_labels()
+
 ```
+
+
+
 
