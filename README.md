@@ -8,5 +8,7 @@ This repository contains the data, analysis scripts, and supplementary materials
 ## Repository Structure
 
 * `Analysis/Clean_data/`: Contains the cleaned datasets used to create tables and figures
+   * `Analysis/tables_figures.qmd` generates the tables used in the thesis
+   * `Analysis/Create_PRISMA_Chart.qmd` generates the PRISMA diagrams in the thesis
 * `Cleaning/`: Contains the raw data files downloaded from Metareviewer and the code to process the raw files
 * `Pre_Processing/Raw_Citation_data`: Contains the raw files downloaded from Epi-reviewer that contains the automation screening scores
