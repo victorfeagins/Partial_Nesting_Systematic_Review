@@ -9,14 +9,11 @@ Journal of Consulting and Clinical Psychology: 1939-2117 or 0022-006X
 Prevention Science: 1573-6695 or 1389-4986	
 
 Journal of Educational Psychology: 1939-2176 or 0022-0663
-Journal of Research on Educational Effectiveness: 1934-5739 or 1934-5747      461
-The Journal of Educational Research:  1940-0675 or 0022-0671                  5,897
+Journal of Research on Educational Effectiveness: 1934-5739 or 1934-5747     
+The Journal of Educational Research:  1940-0675 or 0022-0671                
 
 
 MEDLINE, APA PsycArticles, ERIC Accessed though EBSCOHost
 
-
+Search String:
 IS ( 1934-5739 or 1934-5747 ) OR IS ( 1940-0675 or 0022-0671 ) OR IS ( 1939-2176 or 0022-0663 ) OR IS ( 1573-6695 or 1389-4986 ) OR IS ( 1939-2117 or 0022-006X ) OR IS ( 1552-3926 or 0193-841X ) OR IS ( 1573-3254 or 1090-7165 ) OR IS ( 1873-6327 or 0306-4603 ) OR IS ( 1930-739X or 1930-7381 ) OR IS ( 1930-7810 or 0278-6133 ) OR IS ( 1096-0260 or 0091-7435 ) OR IS ( 1541-0048 or 0090-0036 )
-
-14985 hits
-14172 downloaded from EBSCOHost (This is what they sent me)
