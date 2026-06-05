@@ -1569,7 +1569,14 @@ location_pn_dat |>
     stat_1 = "**No**\nN = {n}",
     stat_2 = "**Yes**\nN = {n}"
   ) |>
-  bold_labels()
+  bold_labels() |> 
+  as_flex_table() |>
+  autofit() |>
+  font(font = "Times New Roman", part = "all") |>
+  border_remove() |>
+  hline_bottom(part = "body") |>
+  hline_top(part = "body") |>
+  hline_top(part = "header")
 
 ```
 
